@@ -1,7 +1,7 @@
-import type { Dependency, Utterance } from "@atlas/core";
-import { cosineSimilarity, DEFAULT_CONFIG, temporalDecay } from "@atlas/core";
-import { extractNouns } from "@/utils/textProcessing";
-import { getEmbeddings } from "./embeddingService";
+import type { Dependency, Utterance } from '@atlas/core';
+import { cosineSimilarity, DEFAULT_CONFIG, temporalDecay } from '@atlas/core';
+import { extractNouns } from '@/utils/textProcessing';
+import { getEmbeddings } from './embeddingService';
 
 /**
  * Compute local dependencies based on recent utterances.
@@ -27,15 +27,13 @@ export const computeLocalDependencies = async (
     }
 
     // 有効な発言のみフィルタ
-    const validUtterances = recentUtterances.filter(
-      (u) => u.text && u.text.trim().length > 0
-    );
+    const validUtterances = recentUtterances.filter(u => u.text && u.text.trim().length > 0);
     if (validUtterances.length === 0) {
       return dependencies;
     }
 
     // Embedding計算（バッチ）
-    const texts = [...validUtterances.map((u) => u.text), current.text];
+    const texts = [...validUtterances.map(u => u.text), current.text];
     const embeddings = await getEmbeddings(texts);
 
     const currentEmbedding = embeddings[embeddings.length - 1];
@@ -55,7 +53,7 @@ export const computeLocalDependencies = async (
       const distance = current.id - prev.id;
       const weight =
         similarity *
-        temporalDecay(distance, "local", {
+        temporalDecay(distance, 'local', {
           lambda_local: DEFAULT_CONFIG.lambda_local,
           lambda_topic: DEFAULT_CONFIG.lambda_topic,
           lambda_global: DEFAULT_CONFIG.lambda_global,
@@ -65,12 +63,12 @@ export const computeLocalDependencies = async (
         dependencies.push({
           id: prev.id,
           weight,
-          type: "local",
+          type: 'local',
         });
       }
     }
   } catch (error) {
-    console.error("Local dependency computation error:", error);
+    console.error('Local dependency computation error:', error);
   }
 
   return dependencies;
@@ -98,14 +96,14 @@ export const computeTopicDependencies = (
 
   for (const prev of recentDialogue) {
     const prevNouns = extractNouns(prev.text);
-    const overlap = currentNouns.filter((n) => prevNouns.includes(n));
+    const overlap = currentNouns.filter(n => prevNouns.includes(n));
 
     if (overlap.length > 0) {
       const distance = current.id - prev.id;
       const rawWeight = overlap.length * 0.3;
       const weight =
         rawWeight *
-        temporalDecay(distance, "topic", {
+        temporalDecay(distance, 'topic', {
           lambda_local: DEFAULT_CONFIG.lambda_local,
           lambda_topic: DEFAULT_CONFIG.lambda_topic,
           lambda_global: DEFAULT_CONFIG.lambda_global,
@@ -115,7 +113,7 @@ export const computeTopicDependencies = (
         dependencies.push({
           id: prev.id,
           weight,
-          type: "topic",
+          type: 'topic',
           evidence: {
             shared_entities: overlap,
           },
