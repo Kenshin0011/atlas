@@ -50,7 +50,7 @@ atlas/
 
 ### Prerequisites
 
-- Node.js >= 18
+- Node.js >= 18 (推奨: 23.6.1)
 - pnpm >= 8
 - OpenAI API Key
 
@@ -59,6 +59,12 @@ atlas/
 ```bash
 # Clone and navigate
 cd atlas
+
+# Node.jsバージョンを設定（nvmを使用する場合）
+nvm use
+
+# または（asdfを使用する場合）
+asdf install
 
 # Install dependencies
 pnpm install
