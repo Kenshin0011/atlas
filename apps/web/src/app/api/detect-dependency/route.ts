@@ -3,6 +3,11 @@ import { DEFAULT_CONFIG } from '@atlas/core';
 import { NextResponse } from 'next/server';
 import { detectDependencies } from '@/services/dependencyAnalyzer';
 
+/**
+ * Handle POST requests for dependency detection.
+ * @param req - The incoming request.
+ * @returns A NextResponse with the detection results.
+ */
 export const POST = async (req: Request) => {
   try {
     const { dialogue, current }: { dialogue: Utterance[]; current: Utterance } = await req.json();

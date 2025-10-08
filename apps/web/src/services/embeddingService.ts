@@ -4,6 +4,11 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+/**
+ * Get embeddings for a list of texts.
+ * @param texts - The texts to embed.
+ * @returns An array of embeddings.
+ */
 export const getEmbeddings = async (texts: string[]): Promise<number[][]> => {
   const response = await openai.embeddings.create({
     model: 'text-embedding-3-small',

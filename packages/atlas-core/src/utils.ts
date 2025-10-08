@@ -4,11 +4,14 @@
  */
 
 /**
- * Cosine Similarity between two embedding vectors
+ * Calculate cosine similarity between two vectors
+ * @param a - First vector
+ * @param b - Second vector
+ * @returns Cosine similarity value
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
-    throw new Error('Vectors must have the same length');
+    throw new Error("Vectors must have the same length");
   }
 
   const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
@@ -24,10 +27,14 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 
 /**
  * Temporal decay function: ω(distance, type)
+ * @param distance - The distance in utterance IDs.
+ * @param type - The type of dependency ('local', 'topic', 'global').
+ * @param config - Decay parameters for each type.
+ * @returns The decay weight.
  */
 export function temporalDecay(
   distance: number,
-  type: 'local' | 'topic' | 'global',
+  type: "local" | "topic" | "global",
   config: { lambda_local: number; lambda_topic: number; lambda_global: number }
 ): number {
   const beta: Record<typeof type, number> = {
@@ -47,6 +54,8 @@ export function temporalDecay(
 
 /**
  * Extract nouns from Japanese text (simple heuristic)
+ * @param text - The input text.
+ * @returns An array of extracted nouns.
  */
 export function extractNouns(text: string): string[] {
   // カタカナ・漢字の連続を抽出
@@ -56,8 +65,14 @@ export function extractNouns(text: string): string[] {
 
 /**
  * Calculate time ago string
+ * @param timestamp - The past timestamp in milliseconds.
+ * @param currentTimestamp - The current timestamp in milliseconds.
+ * @returns A string representing how long ago the timestamp was.
  */
-export function formatTimeAgo(timestamp: number, currentTimestamp: number): string {
+export function formatTimeAgo(
+  timestamp: number,
+  currentTimestamp: number
+): string {
   const diff = currentTimestamp - timestamp;
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
@@ -74,6 +89,8 @@ export function formatTimeAgo(timestamp: number, currentTimestamp: number): stri
 
 /**
  * Detect question patterns in Japanese text
+ * @param text - The input text.
+ * @returns True if the text contains question patterns, false otherwise.
  */
 export function detectQuestion(text: string): boolean {
   const questionPatterns = [
@@ -83,35 +100,47 @@ export function detectQuestion(text: string): boolean {
     /〜か$/,
   ];
 
-  return questionPatterns.some(pattern => pattern.test(text));
+  return questionPatterns.some((pattern) => pattern.test(text));
 }
 
 /**
  * Detect decision/action keywords
+ * @param text - The input text.
+ * @returns True if the text contains decision/action keywords, false otherwise.
  */
 export function detectDecision(text: string): boolean {
   const decisionKeywords = [
-    '決定',
-    '確定',
-    '採用',
-    '却下',
-    'やることにしま',
-    '進めま',
-    'やめま',
-    '期限',
-    '担当',
-    'タスク',
-    'TODO',
+    "決定",
+    "確定",
+    "採用",
+    "却下",
+    "やることにしま",
+    "進めま",
+    "やめま",
+    "期限",
+    "担当",
+    "タスク",
+    "TODO",
   ];
 
-  return decisionKeywords.some(keyword => text.includes(keyword));
+  return decisionKeywords.some((keyword) => text.includes(keyword));
 }
 
 /**
  * Detect temporal reference patterns
+ * @param text - The input text.
+ * @returns An array of detected temporal reference phrases.
  */
 export function detectTemporalReference(text: string): string[] {
-  const patterns = ['さっき', '前に', '最初に', '先ほど', 'あの話', 'その件', 'その時'];
+  const patterns = [
+    "さっき",
+    "前に",
+    "最初に",
+    "先ほど",
+    "あの話",
+    "その件",
+    "その時",
+  ];
 
-  return patterns.filter(pattern => text.includes(pattern));
+  return patterns.filter((pattern) => text.includes(pattern));
 }
