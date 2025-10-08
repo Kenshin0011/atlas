@@ -1,13 +1,70 @@
 import type { Dependency, Utterance } from '@atlas/core';
 import { cosineSimilarity, DEFAULT_CONFIG, temporalDecay } from '@atlas/core';
 import { extractNouns } from '@/utils/textProcessing';
+import { getDefaultThresholds, getRecommendedThresholds } from './adaptiveThresholds';
 import { getEmbeddings } from './embeddingService';
+import { metricsLogger } from './metricsLogger';
+
+/**
+ * Get current thresholds (adaptive or default).
+ *
+ * Automatically switches between adaptive and default thresholds
+ * based on available data quantity.
+ *
+ * @returns ThresholdConfig - Either adaptive (if ≥50 samples) or default
+ *
+ * @remarks
+ * - Uses adaptive thresholds when sufficient data is available (50+ samples)
+ * - Falls back to default thresholds during initial "cold start" period
+ * - Logs threshold source to console for debugging
+ *
+ * @internal
+ */
+const getCurrentThresholds = () => {
+  const summary = metricsLogger.getSummary();
+  const hasEnoughData =
+    summary.localDependencies.weights.length > 50 || summary.topicDependencies.weights.length > 50;
+
+  if (hasEnoughData) {
+    const recommended = getRecommendedThresholds(summary);
+    console.log('[ATLAS] Using adaptive thresholds:', recommended);
+    return recommended;
+  }
+
+  const defaults = getDefaultThresholds();
+  console.log('[ATLAS] Using default thresholds:', defaults);
+  return defaults;
+};
 
 /**
  * Compute local dependencies based on recent utterances.
- * @param dialogue - The dialogue history.
- * @param current - The current utterance.
- * @returns An array of local dependencies.
+ *
+ * Uses semantic similarity (embeddings + cosine similarity) with temporal decay
+ * to detect short-term references to recent context (1-3 utterances back).
+ *
+ * @param dialogue - Full conversation history
+ * @param current - Current utterance to analyze
+ * @returns Array of detected local dependencies
+ *
+ * @remarks
+ * Detection process:
+ * 1. Filter out empty utterances
+ * 2. Get OpenAI embeddings for all utterances (text-embedding-3-small)
+ * 3. Calculate cosine similarity between current and each previous utterance
+ * 4. Apply temporal decay based on distance
+ * 5. Compare against adaptive threshold
+ * 6. Log results to metricsLogger
+ *
+ * Uses adaptive threshold from dependencyAnalyzer.ts:66:
+ * - Default: 0.35 (cosine similarity ~70° angle)
+ * - Adaptive: Based on 75th percentile of collected data
+ *
+ * @example
+ * const deps = await computeLocalDependencies(
+ *   dialogue,
+ *   { id: 5, text: "それについて詳しく教えて", speaker: "A", timestamp: 1000 }
+ * );
+ * // Returns [{ id: 4, weight: 0.68, type: "local" }]
  */
 export const computeLocalDependencies = async (
   dialogue: Utterance[],
@@ -38,6 +95,10 @@ export const computeLocalDependencies = async (
 
     const currentEmbedding = embeddings[embeddings.length - 1];
 
+    // 適応的閾値を取得
+    const thresholds = getCurrentThresholds();
+    const localThreshold = thresholds.local.threshold;
+
     for (let i = 0; i < validUtterances.length; i++) {
       const prev = validUtterances[i];
       const prevEmbedding = embeddings[i];
@@ -59,7 +120,18 @@ export const computeLocalDependencies = async (
           lambda_global: DEFAULT_CONFIG.lambda_global,
         });
 
-      if (weight > 0.3) {
+      // メトリクスをロギング
+      const detected = weight > localThreshold;
+      metricsLogger.logSimilarity({
+        similarity,
+        distance,
+        weight,
+        threshold: localThreshold,
+        detected,
+        timestamp: Date.now(),
+      });
+
+      if (detected) {
         dependencies.push({
           id: prev.id,
           weight,
@@ -75,10 +147,39 @@ export const computeLocalDependencies = async (
 };
 
 /**
- * Compute topic dependencies based on shared nouns in the dialogue.
- * @param dialogue - The dialogue history.
- * @param current - The current utterance.
- * @returns An array of topic dependencies.
+ * Compute topic dependencies using noun overlap heuristic.
+ *
+ * Detects mid-term topical connections by finding shared entities
+ * (katakana/kanji nouns) within the last 10 utterances.
+ *
+ * @param dialogue - Full conversation history
+ * @param current - Current utterance to analyze
+ * @returns Array of detected topic dependencies
+ *
+ * @remarks
+ * Detection process:
+ * 1. Extract nouns (katakana/kanji) from current and last 10 utterances
+ * 2. Find overlapping nouns
+ * 3. Calculate overlap ratio (shared / max(current, prev))
+ * 4. Weight = overlap ratio * 0.5 (max 0.5 for 100% overlap)
+ * 5. Apply temporal decay (λ=0.2)
+ * 6. Compare against adaptive threshold
+ * 7. Log results to metricsLogger
+ *
+ * Uses adaptive threshold from dependencyAnalyzer.ts:174:
+ * - Default: 0.25 (1 shared entity with moderate decay)
+ * - Adaptive: Based on 75th percentile of collected data
+ *
+ * Changed in this commit:
+ * - Weight calculation changed from `overlap.length * 0.3` to ratio-based
+ * - Now considers relative overlap rather than absolute count
+ *
+ * @example
+ * const deps = computeTopicDependencies(
+ *   dialogue,
+ *   { id: 12, text: "AIの倫理問題について", speaker: "A", timestamp: 5000 }
+ * );
+ * // Returns [{ id: 8, weight: 0.35, type: "topic" }] if "AI" was mentioned at id:8
  */
 export const computeTopicDependencies = (
   dialogue: Utterance[],
@@ -91,6 +192,10 @@ export const computeTopicDependencies = (
     return dependencies;
   }
 
+  // 適応的閾値を取得
+  const thresholds = getCurrentThresholds();
+  const topicThreshold = thresholds.topic.threshold;
+
   // 直近10発言を対象
   const recentDialogue = dialogue.slice(-10);
 
@@ -100,7 +205,9 @@ export const computeTopicDependencies = (
 
     if (overlap.length > 0) {
       const distance = current.id - prev.id;
-      const rawWeight = overlap.length * 0.3;
+      // Normalized weight based on overlap ratio
+      const overlapRatio = overlap.length / Math.max(currentNouns.length, prevNouns.length);
+      const rawWeight = overlapRatio * 0.5; // Max 0.5 for 100% overlap
       const weight =
         rawWeight *
         temporalDecay(distance, 'topic', {
@@ -109,7 +216,20 @@ export const computeTopicDependencies = (
           lambda_global: DEFAULT_CONFIG.lambda_global,
         });
 
-      if (weight > 0.25) {
+      // メトリクスをロギング
+      const detected = weight > topicThreshold;
+      metricsLogger.logTopic({
+        overlapCount: overlap.length,
+        distance,
+        rawWeight,
+        weight,
+        threshold: topicThreshold,
+        detected,
+        sharedEntities: overlap,
+        timestamp: Date.now(),
+      });
+
+      if (detected) {
         dependencies.push({
           id: prev.id,
           weight,
