@@ -33,14 +33,22 @@ atlas/
 │       │   │   ├── page.tsx   # Main conversation interface
 │       │   │   └── layout.tsx
 │       │   ├── components/    # React components
-│       │   └── lib/           # Client utilities
+│       │   ├── services/      # Business logic
+│       │   │   ├── dependencyAnalyzer.ts
+│       │   │   └── embeddingService.ts
+│       │   ├── types/         # Type definitions
+│       │   │   └── speech.ts  # Web Speech API types
+│       │   └── utils/         # Utility functions
 │       └── package.json
 │
 └── packages/
     └── atlas-core/             # Shared core library (@atlas/core)
         └── src/
-            ├── types.ts        # Type definitions
-            ├── utils.ts        # Utility functions
+            ├── format/        # Time formatting
+            ├── math/          # Mathematical functions
+            ├── temporal/      # Temporal decay
+            ├── text/          # Text processing
+            ├── types.ts       # Type definitions
             └── index.ts
 ```
 
@@ -98,10 +106,10 @@ pnpm build
 |-------|-----------|
 | **Frontend** | Next.js 15 + React 19 + Tailwind CSS |
 | **Speech Recognition** | Web Speech API (Browser) |
-| **LLM** | OpenAI GPT-4 |
 | **Embeddings** | OpenAI text-embedding-3-small |
 | **Hosting** | Vercel (Serverless) |
 | **Build System** | Turborepo + pnpm workspaces |
+| **Code Quality** | Biome (linter/formatter) |
 
 ---
 
