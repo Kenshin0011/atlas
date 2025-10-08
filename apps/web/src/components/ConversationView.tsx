@@ -1,12 +1,12 @@
 'use client';
 
-import type { Utterance, SCAINResult } from '@atlas/core';
+import type { SCAINResult, Utterance } from '@atlas/core';
 import { formatTimeAgo } from '@atlas/core';
 
-interface ConversationViewProps {
+type ConversationViewProps = {
   dialogue: Utterance[];
   scainResults: Map<number, SCAINResult>;
-}
+};
 
 export function ConversationView({ dialogue, scainResults }: ConversationViewProps) {
   if (dialogue.length === 0) {
@@ -18,6 +18,8 @@ export function ConversationView({ dialogue, scainResults }: ConversationViewPro
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            role="img"
+            aria-label="マイク"
           >
             <path
               strokeLinecap="round"

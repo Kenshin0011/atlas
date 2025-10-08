@@ -3,14 +3,14 @@
  * Attention Temporal Link Analysis System
  */
 
-export interface Utterance {
+export type Utterance = {
   id: number;
   speaker: string;
   text: string;
   timestamp: number;
-}
+};
 
-export interface Dependency {
+export type Dependency = {
   id: number;
   weight: number;
   type: 'local' | 'topic' | 'global';
@@ -19,36 +19,36 @@ export interface Dependency {
     coreferences?: string[];
     temporal_refs?: string[];
   };
-}
+};
 
-export interface SCAINResult {
+export type SCAINResult = {
   is_scain: boolean;
   dependencies: Dependency[];
   scain_type?: 'short-term' | 'mid-term' | 'long-term';
   importance_score: number;
   max_dependency_weight: number;
-}
+};
 
-export interface UserProfile {
+export type UserProfile = {
   name: string;
   expertise: string[];
   tasks: string[];
-}
+};
 
-export interface NotificationReason {
+export type NotificationReason = {
   type: 'direct_mention' | 'relevant_topic' | 'question' | 'decision' | 'topic_shift';
   level: 'critical' | 'high' | 'medium';
   message: string;
-  metadata?: any;
-}
+  metadata?: Record<string, unknown>;
+};
 
-export interface ImportanceResult {
+export type ImportanceResult = {
   importance_score: number;
   should_notify: boolean;
   reasons: NotificationReason[];
-}
+};
 
-export interface ContextRecovery {
+export type ContextRecovery = {
   needs_context: boolean;
   dependency_count: number;
   time_range?: string;
@@ -58,9 +58,9 @@ export interface ContextRecovery {
   recommended_action: string;
   context_utterances: Utterance[];
   dependency_graph: Dependency[];
-}
+};
 
-export interface DetectionConfig {
+export type DetectionConfig = {
   scain_threshold: number;
   w_local: number;
   w_topic: number;
@@ -68,7 +68,7 @@ export interface DetectionConfig {
   lambda_local: number;
   lambda_topic: number;
   lambda_global: number;
-}
+};
 
 export const DEFAULT_CONFIG: DetectionConfig = {
   scain_threshold: 0.5,

@@ -1,15 +1,17 @@
 'use client';
 
-interface NotificationPanelProps {
+import type { SCAINResult, Utterance } from '@atlas/core';
+
+type NotificationPanelProps = {
   notification: {
     id: number;
     level: 'critical' | 'high' | 'medium';
     message: string;
-    utterance?: any;
-    result?: any;
+    utterance?: Utterance;
+    result?: SCAINResult;
   };
   onDismiss: () => void;
-}
+};
 
 export function NotificationPanel({ notification, onDismiss }: NotificationPanelProps) {
   const levelStyles = {
@@ -55,11 +57,19 @@ export function NotificationPanel({ notification, onDismiss }: NotificationPanel
         </div>
 
         <button
+          type="button"
           onClick={onDismiss}
           className="hover:bg-white/20 rounded p-1 transition-colors"
           aria-label="閉じる"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            role="img"
+            aria-label="閉じる"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"

@@ -1,36 +1,93 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import type { Utterance, SCAINResult } from '@atlas/core';
-import { ConversationView } from './ConversationView';
+import type { SCAINResult, Utterance } from '@atlas/core';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type {
+  SpeechRecognition,
+  SpeechRecognitionErrorEvent,
+  SpeechRecognitionEvent,
+} from '@/types/speech';
 import { ControlPanel } from './ControlPanel';
+import { ConversationView } from './ConversationView';
 import { NotificationPanel } from './NotificationPanel';
+
+type Notification = {
+  id: number;
+  level: 'high' | 'medium' | 'low';
+  message: string;
+  utterance: Utterance;
+  result: SCAINResult;
+};
 
 export function ConversationAssistant() {
   const [dialogue, setDialogue] = useState<Utterance[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [scainResults, setSCAINResults] = useState<Map<number, SCAINResult>>(new Map());
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const recognitionRef = useRef<any>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  const addNotification = useCallback((notification: Notification) => {
+    setNotifications(prev => [...prev, notification]);
+
+    // 自動削除（10秒後）
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    }, 10000);
+  }, []);
+
+  const detectSCAIN = useCallback(
+    async (dialogue: Utterance[], current: Utterance) => {
+      try {
+        const response = await fetch('/api/detect-dependency', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dialogue, current }),
+        });
+
+        if (!response.ok) {
+          throw new Error('SCAIN判定APIエラー');
+        }
+
+        const result: SCAINResult = await response.json();
+
+        if (result.is_scain) {
+          setSCAINResults(prev => new Map(prev).set(current.id, result));
+
+          // 重要度が高ければ通知
+          if (result.importance_score > 0.7) {
+            addNotification({
+              id: Date.now(),
+              level: 'high',
+              message: '重要な発言が検出されました',
+              utterance: current,
+              result,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('SCAIN判定エラー:', error);
+      }
+    },
+    [addNotification]
+  );
 
   useEffect(() => {
     // Web Speech API の初期化
     if (typeof window !== 'undefined') {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-      if (!SpeechRecognition) {
+      if (!SpeechRecognitionAPI) {
         alert('お使いのブラウザは音声認識に対応していません。Chromeをご利用ください。');
         return;
       }
 
-      const recognition = new SpeechRecognition();
+      const recognition = new SpeechRecognitionAPI();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'ja-JP';
       recognition.maxAlternatives = 1;
 
-      recognition.onresult = async (event: any) => {
+      recognition.onresult = async (event: SpeechRecognitionEvent) => {
         const last = event.results.length - 1;
         const transcript = event.results[last][0].transcript;
         const isFinal = event.results[last].isFinal;
@@ -52,7 +109,7 @@ export function ConversationAssistant() {
         }
       };
 
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         // eslint-disable-next-line no-console
         console.error('音声認識エラー:', event.error);
         if (event.error === 'no-speech') {
@@ -70,7 +127,7 @@ export function ConversationAssistant() {
 
       recognitionRef.current = recognition;
     }
-  }, [dialogue, isListening]);
+  }, [dialogue, isListening, detectSCAIN]);
 
   const startListening = () => {
     try {
@@ -78,11 +135,11 @@ export function ConversationAssistant() {
         recognitionRef.current.start();
         setIsListening(true);
       }
-    } catch (error: any) {
+    } catch (error) {
       // eslint-disable-next-line no-console
       console.error('音声認識の開始に失敗:', error);
       // already started エラーは無視
-      if (error.message?.includes('already started')) {
+      if (error instanceof Error && error.message?.includes('already started')) {
         setIsListening(true);
       }
     }
@@ -91,48 +148,6 @@ export function ConversationAssistant() {
   const stopListening = () => {
     recognitionRef.current?.stop();
     setIsListening(false);
-  };
-
-  const detectSCAIN = async (dialogue: Utterance[], current: Utterance) => {
-    try {
-      const response = await fetch('/api/detect-dependency', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dialogue, current }),
-      });
-
-      if (!response.ok) {
-        throw new Error('SCAIN判定APIエラー');
-      }
-
-      const result: SCAINResult = await response.json();
-
-      if (result.is_scain) {
-        setSCAINResults(prev => new Map(prev).set(current.id, result));
-
-        // 重要度が高ければ通知
-        if (result.importance_score > 0.7) {
-          addNotification({
-            id: Date.now(),
-            level: 'high',
-            message: '重要な発言が検出されました',
-            utterance: current,
-            result,
-          });
-        }
-      }
-    } catch (error) {
-      console.error('SCAIN判定エラー:', error);
-    }
-  };
-
-  const addNotification = (notification: any) => {
-    setNotifications(prev => [...prev, notification]);
-
-    // 自動削除（10秒後）
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== notification.id));
-    }, 10000);
   };
 
   const dismissNotification = (id: number) => {

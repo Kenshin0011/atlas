@@ -1,12 +1,12 @@
 'use client';
 
-interface ControlPanelProps {
+type ControlPanelProps = {
   isListening: boolean;
   onStart: () => void;
   onStop: () => void;
   onClear: () => void;
   utteranceCount: number;
-}
+};
 
 export function ControlPanel({
   isListening,
@@ -38,10 +38,18 @@ export function ControlPanel({
         <div className="flex gap-3">
           {!isListening ? (
             <button
+              type="button"
               onClick={onStart}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                role="img"
+                aria-label="マイク"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -53,10 +61,18 @@ export function ControlPanel({
             </button>
           ) : (
             <button
+              type="button"
               onClick={onStop}
               className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                role="img"
+                aria-label="停止"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -75,6 +91,7 @@ export function ControlPanel({
           )}
 
           <button
+            type="button"
             onClick={onClear}
             disabled={utteranceCount === 0}
             className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
