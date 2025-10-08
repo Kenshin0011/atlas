@@ -6,9 +6,16 @@ import { formatTimeAgo } from '@atlas/core';
 type ConversationViewProps = {
   dialogue: Utterance[];
   scainResults: Map<number, SCAINResult>;
+  onUtteranceClick?: (utterance: Utterance) => void;
+  importantOnlyMode?: boolean;
 };
 
-export function ConversationView({ dialogue, scainResults }: ConversationViewProps) {
+export function ConversationView({
+  dialogue,
+  scainResults,
+  onUtteranceClick,
+  importantOnlyMode = false,
+}: ConversationViewProps) {
   if (dialogue.length === 0) {
     return (
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-12 text-center">
@@ -35,23 +42,47 @@ export function ConversationView({ dialogue, scainResults }: ConversationViewPro
     );
   }
 
+  // フィルタリング
+  const filteredDialogue = importantOnlyMode
+    ? dialogue.filter(utt => scainResults.get(utt.id)?.is_scain)
+    : dialogue;
+
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6">
-      <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">会話履歴</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">会話履歴</h2>
+        {importantOnlyMode && (
+          <span className="text-sm text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+            <span role="img" aria-label="フィルタ">
+              ⭐
+            </span>
+            重要な発言のみ表示中
+          </span>
+        )}
+      </div>
 
       <div className="space-y-3 max-h-[600px] overflow-y-auto">
-        {dialogue.map(utterance => {
+        {filteredDialogue.map(utterance => {
           const scainResult = scainResults.get(utterance.id);
           const isSCAIN = scainResult?.is_scain;
 
           return (
-            <div
+            <button
+              type="button"
               key={utterance.id}
-              className={`p-4 rounded-lg transition-all ${
+              onClick={() => onUtteranceClick?.(utterance)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onUtteranceClick?.(utterance);
+                }
+              }}
+              className={`w-full text-left p-4 rounded-lg transition-all ${
                 isSCAIN
                   ? 'bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500'
                   : 'bg-slate-50 dark:bg-slate-700/50'
-              }`}
+              } ${onUtteranceClick ? 'cursor-pointer hover:shadow-md' : ''}`}
+              disabled={!onUtteranceClick}
             >
               {/* ヘッダー */}
               <div className="flex items-center justify-between mb-2">
@@ -79,7 +110,7 @@ export function ConversationView({ dialogue, scainResults }: ConversationViewPro
               {/* SCAIN詳細 */}
               {scainResult && isSCAIN && (
                 <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
-                  <div className="text-xs space-y-1">
+                  <div className="text-xs space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="text-slate-600 dark:text-slate-400">依存タイプ:</span>
                       <span className="font-medium text-amber-700 dark:text-amber-400">
@@ -98,7 +129,7 @@ export function ConversationView({ dialogue, scainResults }: ConversationViewPro
                       <span className="text-slate-600 dark:text-slate-400">重要度:</span>
                       <div className="flex-1 bg-slate-200 dark:bg-slate-600 rounded-full h-2 max-w-[100px]">
                         <div
-                          className="bg-amber-500 h-2 rounded-full"
+                          className="bg-amber-500 h-2 rounded-full transition-all"
                           style={{
                             width: `${scainResult.importance_score * 100}%`,
                           }}
@@ -108,10 +139,39 @@ export function ConversationView({ dialogue, scainResults }: ConversationViewPro
                         {Math.round(scainResult.importance_score * 100)}%
                       </span>
                     </div>
+                    {/* 依存先の発言プレビュー */}
+                    {scainResult.dependencies.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-800">
+                        <span className="text-slate-600 dark:text-slate-400 block mb-1">
+                          参照している発言:
+                        </span>
+                        <div className="space-y-1">
+                          {scainResult.dependencies.slice(0, 2).map(dep => {
+                            const refUtterance = dialogue.find(u => u.id === dep.id);
+                            if (!refUtterance) return null;
+                            return (
+                              <div
+                                key={dep.id}
+                                className="text-slate-700 dark:text-slate-300 bg-white/50 dark:bg-slate-800/50 rounded px-2 py-1"
+                              >
+                                <span className="font-medium">{refUtterance.speaker}:</span>{' '}
+                                {refUtterance.text.slice(0, 30)}
+                                {refUtterance.text.length > 30 && '...'}
+                              </div>
+                            );
+                          })}
+                          {scainResult.dependencies.length > 2 && (
+                            <div className="text-slate-500 dark:text-slate-400 italic">
+                              他 {scainResult.dependencies.length - 2} 件
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
-            </div>
+            </button>
           );
         })}
       </div>
