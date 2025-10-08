@@ -35,9 +35,7 @@ export function ConversationView({ dialogue, scainResults }: ConversationViewPro
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6">
-      <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">
-        会話履歴
-      </h2>
+      <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">会話履歴</h2>
 
       <div className="space-y-3 max-h-[600px] overflow-y-auto">
         {dialogue.map(utterance => {
@@ -74,18 +72,14 @@ export function ConversationView({ dialogue, scainResults }: ConversationViewPro
               </div>
 
               {/* 発言内容 */}
-              <p className="text-slate-800 dark:text-slate-200 leading-relaxed">
-                {utterance.text}
-              </p>
+              <p className="text-slate-800 dark:text-slate-200 leading-relaxed">{utterance.text}</p>
 
               {/* SCAIN詳細 */}
               {scainResult && isSCAIN && (
                 <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
                   <div className="text-xs space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        依存タイプ:
-                      </span>
+                      <span className="text-slate-600 dark:text-slate-400">依存タイプ:</span>
                       <span className="font-medium text-amber-700 dark:text-amber-400">
                         {scainResult.scain_type === 'short-term' && '短期'}
                         {scainResult.scain_type === 'mid-term' && '中期'}
@@ -93,17 +87,13 @@ export function ConversationView({ dialogue, scainResults }: ConversationViewPro
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        依存先:
-                      </span>
+                      <span className="text-slate-600 dark:text-slate-400">依存先:</span>
                       <span className="text-slate-700 dark:text-slate-300">
                         {scainResult.dependencies.length}個の発言
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        重要度:
-                      </span>
+                      <span className="text-slate-600 dark:text-slate-400">重要度:</span>
                       <div className="flex-1 bg-slate-200 dark:bg-slate-600 rounded-full h-2 max-w-[100px]">
                         <div
                           className="bg-amber-500 h-2 rounded-full"

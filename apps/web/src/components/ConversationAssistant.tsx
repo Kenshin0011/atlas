@@ -17,8 +17,7 @@ export function ConversationAssistant() {
     // Web Speech API の初期化
     if (typeof window !== 'undefined') {
       const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
       if (!SpeechRecognition) {
         alert('お使いのブラウザは音声認識に対応していません。Chromeをご利用ください。');
@@ -150,9 +149,7 @@ export function ConversationAssistant() {
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       {/* ヘッダー */}
       <header className="mb-8">
-        <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100 mb-2">
-          ATLAS
-        </h1>
+        <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100 mb-2">ATLAS</h1>
         <p className="text-slate-600 dark:text-slate-400">
           Attention Temporal Link Analysis System
         </p>
@@ -179,10 +176,7 @@ export function ConversationAssistant() {
       />
 
       {/* 会話表示 */}
-      <ConversationView
-        dialogue={dialogue}
-        scainResults={scainResults}
-      />
+      <ConversationView dialogue={dialogue} scainResults={scainResults} />
     </div>
   );
 }

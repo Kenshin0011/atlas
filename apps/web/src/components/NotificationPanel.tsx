@@ -48,9 +48,7 @@ export function NotificationPanel({ notification, onDismiss }: NotificationPanel
 
           {notification.utterance && (
             <div className="text-sm opacity-90 mt-2 p-2 bg-black/10 rounded">
-              <div className="font-semibold mb-1">
-                {notification.utterance.speaker}:
-              </div>
+              <div className="font-semibold mb-1">{notification.utterance.speaker}:</div>
               <div>{notification.utterance.text}</div>
             </div>
           )}
@@ -61,12 +59,7 @@ export function NotificationPanel({ notification, onDismiss }: NotificationPanel
           className="hover:bg-white/20 rounded p-1 transition-colors"
           aria-label="閉じる"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"

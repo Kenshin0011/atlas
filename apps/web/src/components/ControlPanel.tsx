@@ -23,9 +23,7 @@ export function ControlPanel({
           <div className="flex items-center gap-2">
             <div
               className={`w-3 h-3 rounded-full ${
-                isListening
-                  ? 'bg-red-500 animate-pulse'
-                  : 'bg-gray-300 dark:bg-gray-600'
+                isListening ? 'bg-red-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
               }`}
             />
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -33,9 +31,7 @@ export function ControlPanel({
             </span>
           </div>
 
-          <div className="text-sm text-slate-500 dark:text-slate-400">
-            発言数: {utteranceCount}
-          </div>
+          <div className="text-sm text-slate-500 dark:text-slate-400">発言数: {utteranceCount}</div>
         </div>
 
         {/* コントロールボタン */}
@@ -45,12 +41,7 @@ export function ControlPanel({
               onClick={onStart}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -65,12 +56,7 @@ export function ControlPanel({
               onClick={onStop}
               className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"

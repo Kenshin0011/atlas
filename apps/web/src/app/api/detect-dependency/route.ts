@@ -9,8 +9,7 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
   try {
-    const { dialogue, current }: { dialogue: Utterance[]; current: Utterance } =
-      await req.json();
+    const { dialogue, current }: { dialogue: Utterance[]; current: Utterance } = await req.json();
 
     // 依存関係検出
     const dependencies = await detectDependencies(dialogue, current);
@@ -30,8 +29,8 @@ export async function POST(req: Request) {
         maxDependency.type === 'local'
           ? 'short-term'
           : maxDependency.type === 'topic'
-          ? 'mid-term'
-          : 'long-term';
+            ? 'mid-term'
+            : 'long-term';
     }
 
     const result: SCAINResult = {
@@ -45,10 +44,7 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('Dependency detection error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -136,10 +132,7 @@ async function computeLocalDependencies(
   return dependencies;
 }
 
-function computeTopicDependencies(
-  dialogue: Utterance[],
-  current: Utterance
-): Dependency[] {
+function computeTopicDependencies(dialogue: Utterance[], current: Utterance): Dependency[] {
   const dependencies: Dependency[] = [];
   const currentNouns = extractNouns(current.text);
 
