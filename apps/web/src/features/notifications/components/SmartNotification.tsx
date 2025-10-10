@@ -1,6 +1,7 @@
 'use client';
 
 import type { SCAINResult, Utterance } from '@atlas/core';
+import { Button } from '@atlas/ui';
 
 export type NotificationLevel = 'critical' | 'high' | 'medium';
 
@@ -93,21 +94,23 @@ export const SmartNotification = ({
 
           {/* アクションボタン */}
           <div className="flex gap-2">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onShowContext}
-              className="text-xs px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded transition-colors font-medium"
+              className="bg-white/20 hover:bg-white/30 text-current"
             >
               文脈を表示
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* 閉じるボタン */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onDismiss}
-          className="hover:bg-white/20 rounded p-1 transition-colors flex-shrink-0"
+          className="hover:bg-white/20 p-1 flex-shrink-0 min-w-0 text-current"
           aria-label="閉じる"
         >
           <svg
@@ -125,7 +128,7 @@ export const SmartNotification = ({
               d="M6 18L18 6M6 6l12 12"
             />
           </svg>
-        </button>
+        </Button>
       </div>
     </div>
   );

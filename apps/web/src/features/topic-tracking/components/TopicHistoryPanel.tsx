@@ -1,9 +1,8 @@
 'use client';
 
 import type { Utterance } from '@atlas/core';
-import { formatTimeAgo } from '@atlas/core';
+import { extractNouns, formatTimeAgo } from '@atlas/core';
 import { useMemo } from 'react';
-import { extractNouns } from '@/utils/textProcessing';
 
 type TopicSegment = {
   topicKeywords: string[];

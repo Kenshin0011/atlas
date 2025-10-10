@@ -1,6 +1,5 @@
+import { getDefaultThresholds, getRecommendedThresholds, metricsLogger } from '@atlas/core';
 import { NextResponse } from 'next/server';
-import { getDefaultThresholds, getRecommendedThresholds } from '@/services/adaptiveThresholds';
-import { metricsLogger } from '@/services/metricsLogger';
 
 /**
  * GET /api/metrics

@@ -1,21 +1,20 @@
 'use client';
 
 import type { SCAINResult, Utterance } from '@atlas/core';
+import { extractNouns } from '@atlas/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ContextRecoveryData } from '@/features/context-recovery';
+import { ContextRecoveryPanel, QuickActionButtons } from '@/features/context-recovery';
+import type { SmartNotificationData } from '@/features/notifications';
+import { SmartNotification } from '@/features/notifications';
+import { TopicHistoryPanel } from '@/features/topic-tracking';
 import type {
   SpeechRecognition,
   SpeechRecognitionErrorEvent,
   SpeechRecognitionEvent,
 } from '@/types/speech';
-import { extractNouns } from '@/utils/textProcessing';
-import type { ContextRecoveryData } from './ContextRecoveryPanel';
-import { ContextRecoveryPanel } from './ContextRecoveryPanel';
 import { ControlPanel } from './ControlPanel';
 import { ConversationView } from './ConversationView';
-import { QuickActionButtons } from './QuickActionButtons';
-import type { SmartNotificationData } from './SmartNotification';
-import { SmartNotification } from './SmartNotification';
-import { TopicHistoryPanel } from './TopicHistoryPanel';
 
 // 通知履歴を保持（話題転換検出用）
 let lastTopicKeywords: string[] = [];

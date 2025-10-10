@@ -1,7 +1,12 @@
-import type { SCAINResult, Utterance } from '@atlas/core';
-import { DEFAULT_CONFIG } from '@atlas/core';
+import type { EmbeddingService, SCAINResult, Utterance } from '@atlas/core';
+import { DEFAULT_CONFIG, detectDependencies } from '@atlas/core';
 import { NextResponse } from 'next/server';
-import { detectDependencies } from '@/services/dependencyAnalyzer';
+import { getEmbeddings } from '@/services/embeddingService';
+
+// Adapter for embedding service
+const embeddingService: EmbeddingService = {
+  getEmbeddings,
+};
 
 /**
  * Handle POST requests for dependency detection.
@@ -13,7 +18,7 @@ export const POST = async (req: Request) => {
     const { dialogue, current }: { dialogue: Utterance[]; current: Utterance } = await req.json();
 
     // 依存関係検出
-    const dependencies = await detectDependencies(dialogue, current);
+    const dependencies = await detectDependencies(dialogue, current, embeddingService);
 
     // SCAIN判定
     const maxDependency =

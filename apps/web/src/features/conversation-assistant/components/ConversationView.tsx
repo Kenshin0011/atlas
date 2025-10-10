@@ -2,6 +2,7 @@
 
 import type { SCAINResult, Utterance } from '@atlas/core';
 import { formatTimeAgo } from '@atlas/core';
+import { Badge, Card } from '@atlas/ui';
 
 type ConversationViewProps = {
   dialogue: Utterance[];
@@ -18,7 +19,7 @@ export function ConversationView({
 }: ConversationViewProps) {
   if (dialogue.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-12 text-center">
+      <Card variant="elevated" padding="lg" className="text-center">
         <div className="text-slate-400 dark:text-slate-500">
           <svg
             className="w-16 h-16 mx-auto mb-4"
@@ -38,7 +39,7 @@ export function ConversationView({
           <p className="text-lg font-medium mb-2">会話が記録されていません</p>
           <p className="text-sm">「開始」ボタンを押して音声認識を開始してください</p>
         </div>
-      </div>
+      </Card>
     );
   }
 
@@ -48,7 +49,7 @@ export function ConversationView({
     : dialogue;
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6">
+    <Card variant="elevated" padding="lg">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">会話履歴</h2>
         {importantOnlyMode && (
@@ -97,9 +98,7 @@ export function ConversationView({
 
                 {isSCAIN && (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-2 py-1 rounded">
-                      🔗 依存あり
-                    </span>
+                    <Badge variant="warning">🔗 依存あり</Badge>
                   </div>
                 )}
               </div>
@@ -175,6 +174,6 @@ export function ConversationView({
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }

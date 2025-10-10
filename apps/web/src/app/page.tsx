@@ -1,6 +1,6 @@
 'use client';
 
-import { ConversationAssistant } from '@/components/ConversationAssistant';
+import { ConversationAssistant } from '@/features/conversation-assistant';
 
 export default function Home() {
   return (

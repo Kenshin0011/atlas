@@ -20,6 +20,9 @@ importers:
       '@atlas/core':
         specifier: workspace:*
         version: link:../../packages/atlas-core
+      '@atlas/ui':
+        specifier: workspace:*
+        version: link:../../packages/atlas-ui
       next:
         specifier: 15.5.4
         version: 15.5.4(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -72,6 +75,28 @@ importers:
         version: 20.19.19
       typescript:
         specifier: ^5
+        version: 5.9.3
+
+  packages/atlas-ui:
+    dependencies:
+      '@atlas/core':
+        specifier: workspace:*
+        version: link:../atlas-core
+      react:
+        specifier: ^19.0.0
+        version: 19.1.0
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.1.0(react@19.1.0)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.2
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.1(@types/react@19.2.2)
+      typescript:
+        specifier: ^5.7.3
         version: 5.9.3
 
 packages:

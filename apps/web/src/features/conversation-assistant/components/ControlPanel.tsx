@@ -1,5 +1,7 @@
 'use client';
 
+import { Button } from '@atlas/ui';
+
 type ControlPanelProps = {
   isListening: boolean;
   onStart: () => void;
@@ -37,11 +39,7 @@ export function ControlPanel({
         {/* コントロールボタン */}
         <div className="flex gap-3">
           {!isListening ? (
-            <button
-              type="button"
-              onClick={onStart}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-            >
+            <Button variant="primary" onClick={onStart} className="flex items-center gap-2">
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -58,13 +56,9 @@ export function ControlPanel({
                 />
               </svg>
               開始
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              onClick={onStop}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-            >
+            <Button variant="danger" onClick={onStop} className="flex items-center gap-2">
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -87,17 +81,12 @@ export function ControlPanel({
                 />
               </svg>
               停止
-            </button>
+            </Button>
           )}
 
-          <button
-            type="button"
-            onClick={onClear}
-            disabled={utteranceCount === 0}
-            className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button variant="secondary" onClick={onClear} disabled={utteranceCount === 0}>
             クリア
-          </button>
+          </Button>
         </div>
       </div>
     </div>

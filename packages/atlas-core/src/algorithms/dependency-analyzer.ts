@@ -1,9 +1,17 @@
-import type { Dependency, Utterance } from '@atlas/core';
-import { cosineSimilarity, DEFAULT_CONFIG, temporalDecay } from '@atlas/core';
-import { extractNouns } from '@/utils/textProcessing';
-import { getDefaultThresholds, getRecommendedThresholds } from './adaptiveThresholds';
-import { getEmbeddings } from './embeddingService';
-import { metricsLogger } from './metricsLogger';
+import { cosineSimilarity } from '../math/similarity';
+import { temporalDecay } from '../temporal/decay';
+import { extractNouns } from '../text/processing';
+import type { Dependency, Utterance } from '../types';
+import { DEFAULT_CONFIG } from '../types';
+import { getDefaultThresholds, getRecommendedThresholds } from './adaptive-thresholds';
+import { metricsLogger } from './metrics-logger';
+
+/**
+ * Embedding service interface for dependency injection
+ */
+export type EmbeddingService = {
+  getEmbeddings: (texts: string[]) => Promise<number[][]>;
+};
 
 /**
  * Get current thresholds (adaptive or default).
@@ -68,7 +76,8 @@ const getCurrentThresholds = () => {
  */
 export const computeLocalDependencies = async (
   dialogue: Utterance[],
-  current: Utterance
+  current: Utterance,
+  embeddingService: EmbeddingService
 ): Promise<Dependency[]> => {
   const dependencies: Dependency[] = [];
   const recentUtterances = dialogue.slice(-3); // 直前3発言
@@ -91,7 +100,7 @@ export const computeLocalDependencies = async (
 
     // Embedding計算（バッチ）
     const texts = [...validUtterances.map(u => u.text), current.text];
-    const embeddings = await getEmbeddings(texts);
+    const embeddings = await embeddingService.getEmbeddings(texts);
 
     const currentEmbedding = embeddings[embeddings.length - 1];
 
@@ -267,16 +276,18 @@ export const deduplicateDependencies = (deps: Dependency[]): Dependency[] => {
  * Detect dependencies in the dialogue.
  * @param dialogue - The dialogue history.
  * @param current - The current utterance.
+ * @param embeddingService - The embedding service for computing similarities.
  * @returns An array of detected dependencies.
  */
 export const detectDependencies = async (
   dialogue: Utterance[],
-  current: Utterance
+  current: Utterance,
+  embeddingService: EmbeddingService
 ): Promise<Dependency[]> => {
   const dependencies: Dependency[] = [];
 
   // Layer 1: Local Dependencies (直前3発言)
-  const localDeps = await computeLocalDependencies(dialogue, current);
+  const localDeps = await computeLocalDependencies(dialogue, current, embeddingService);
   dependencies.push(...localDeps);
 
   // Layer 2: Topical Dependencies (簡易版 - 固有名詞の重複)
