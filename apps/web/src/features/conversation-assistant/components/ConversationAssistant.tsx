@@ -2,32 +2,46 @@
 
 import type { SCAINResult, Utterance } from '@atlas/core';
 import { extractNouns } from '@atlas/core';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ContextRecoveryData } from '@/features/context-recovery';
 import { ContextRecoveryPanel, QuickActionButtons } from '@/features/context-recovery';
 import type { SmartNotificationData } from '@/features/notifications';
 import { SmartNotification } from '@/features/notifications';
 import { TopicHistoryPanel } from '@/features/topic-tracking';
-import type {
-  SpeechRecognition,
-  SpeechRecognitionErrorEvent,
-  SpeechRecognitionEvent,
-} from '@/types/speech';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { getSpeakerName, setSpeakerName } from '../utils/speaker-storage';
 import { ControlPanel } from './ControlPanel';
 import { ConversationView } from './ConversationView';
+import { SpeakerNameModal } from './SpeakerNameModal';
 
 // 通知履歴を保持（話題転換検出用）
 let lastTopicKeywords: string[] = [];
 
 export function ConversationAssistant() {
   const [dialogue, setDialogue] = useState<Utterance[]>([]);
-  const [isListening, setIsListening] = useState(false);
   const [scainResults, setSCAINResults] = useState<Map<number, SCAINResult>>(new Map());
   const [notifications, setNotifications] = useState<SmartNotificationData[]>([]);
   const [contextRecovery, setContextRecovery] = useState<ContextRecoveryData | null>(null);
   const [showTopicHistory, setShowTopicHistory] = useState(false);
   const [importantOnlyMode, setImportantOnlyMode] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const [speakerName, setSpeakerNameState] = useState<string | null>(null);
+  const [showNameModal, setShowNameModal] = useState(false);
+
+  // 初回マウント時に話者名を取得
+  useEffect(() => {
+    const savedName = getSpeakerName();
+    if (savedName) {
+      setSpeakerNameState(savedName);
+    } else {
+      setShowNameModal(true);
+    }
+  }, []);
+
+  const handleSpeakerNameSubmit = (name: string) => {
+    setSpeakerName(name);
+    setSpeakerNameState(name);
+    setShowNameModal(false);
+  };
 
   const addNotification = useCallback((notification: SmartNotificationData) => {
     setNotifications(prev => [...prev, notification]);
@@ -107,84 +121,34 @@ export function ConversationAssistant() {
     [addNotification]
   );
 
-  useEffect(() => {
-    // Web Speech API の初期化
-    if (typeof window !== 'undefined') {
-      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+  // Speech Recognition Hook
+  const handleTranscript = useCallback(
+    (transcript: string, isFinal: boolean) => {
+      if (isFinal && speakerName) {
+        const newUtterance: Utterance = {
+          id: dialogue.length,
+          speaker: speakerName,
+          text: transcript,
+          timestamp: Date.now(),
+        };
 
-      if (!SpeechRecognitionAPI) {
-        alert('お使いのブラウザは音声認識に対応していません。Chromeをご利用ください。');
-        return;
+        // 会話履歴に追加
+        const updatedDialogue = [...dialogue, newUtterance];
+        setDialogue(updatedDialogue);
+
+        // SCAIN判定 (非同期)
+        detectSCAIN(updatedDialogue, newUtterance);
       }
+    },
+    [dialogue, detectSCAIN, speakerName]
+  );
 
-      const recognition = new SpeechRecognitionAPI();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'ja-JP';
-      recognition.maxAlternatives = 1;
-
-      recognition.onresult = async (event: SpeechRecognitionEvent) => {
-        const last = event.results.length - 1;
-        const transcript = event.results[last][0].transcript;
-        const isFinal = event.results[last].isFinal;
-
-        if (isFinal) {
-          const newUtterance: Utterance = {
-            id: dialogue.length,
-            speaker: '話者A', // TODO: 話者分離
-            text: transcript,
-            timestamp: Date.now(),
-          };
-
-          // 会話履歴に追加
-          const updatedDialogue = [...dialogue, newUtterance];
-          setDialogue(updatedDialogue);
-
-          // SCAIN判定 (非同期)
-          detectSCAIN(updatedDialogue, newUtterance);
-        }
-      };
-
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        // eslint-disable-next-line no-console
-        console.error('音声認識エラー:', event.error);
-        if (event.error === 'no-speech') {
-          // eslint-disable-next-line no-console
-          console.log('音声が検出されませんでした');
-        }
-      };
-
-      recognition.onend = () => {
-        // 自動再起動（continuous=trueでも止まることがある）
-        if (isListening) {
-          recognition.start();
-        }
-      };
-
-      recognitionRef.current = recognition;
-    }
-  }, [dialogue, isListening, detectSCAIN]);
-
-  const startListening = () => {
-    try {
-      if (recognitionRef.current && !isListening) {
-        recognitionRef.current.start();
-        setIsListening(true);
-      }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('音声認識の開始に失敗:', error);
-      // already started エラーは無視
-      if (error instanceof Error && error.message?.includes('already started')) {
-        setIsListening(true);
-      }
-    }
-  };
-
-  const stopListening = () => {
-    recognitionRef.current?.stop();
-    setIsListening(false);
-  };
+  const { isListening, startListening, stopListening } = useSpeechRecognition({
+    onTranscript: handleTranscript,
+    onError: error => {
+      console.error('音声認識エラー:', error);
+    },
+  });
 
   const dismissNotification = (id: number) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
@@ -240,12 +204,20 @@ export function ConversationAssistant() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
+      {/* Speaker Name Modal */}
+      <SpeakerNameModal isOpen={showNameModal} onSubmit={handleSpeakerNameSubmit} />
+
       {/* ヘッダー */}
       <header className="mb-8">
         <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100 mb-2">ATLAS</h1>
         <p className="text-slate-600 dark:text-slate-400">
           Attention Temporal Link Analysis System
         </p>
+        {speakerName && (
+          <p className="text-sm text-slate-500 dark:text-slate-500 mt-1">
+            話者: <span className="font-semibold">{speakerName}</span>
+          </p>
+        )}
       </header>
 
       {/* 通知エリア */}
