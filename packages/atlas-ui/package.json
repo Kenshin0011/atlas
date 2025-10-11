@@ -21,8 +21,8 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "typescript": "^5.7.3"
+    "@atlas/tailwind": "workspace:*",
+    "@atlas/tsconfig": "workspace:*",
+    "@atlas/vite": "workspace:*"
   }
 }
