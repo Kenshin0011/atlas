@@ -9,6 +9,7 @@ type PageProps = {
   params: { booth_id: string };
 };
 
-export default function BoothPage({ params }: PageProps) {
-  return <Assistant boothId={params.booth_id} />;
+export default async function BoothPage({ params }: PageProps) {
+  const { booth_id } = await params;
+  return <Assistant boothId={booth_id} />;
 }

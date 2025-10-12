@@ -3,13 +3,8 @@
  * Analyzes conversation history and returns important utterances
  */
 
-import {
-  AnchorMemory,
-  ctideWithAnchors,
-  OpenAIAdapter,
-  toCTIDEUtterance,
-  type Utterance,
-} from '@atlas/core';
+import type { Utterance } from '@atlas/core';
+import { AnchorMemory, analyzeWithAnchors, OpenAIAdapter, toAnalyzerUtterance } from '@atlas/core';
 import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
@@ -60,11 +55,11 @@ export async function POST(req: NextRequest) {
     const adapter = getAdapter();
 
     // Convert Core Utterances (id: number -> id: string)
-    const historyConverted = history.map(toCTIDEUtterance);
-    const currentConverted = toCTIDEUtterance(current);
+    const historyConverted = history.map(toAnalyzerUtterance);
+    const currentConverted = toAnalyzerUtterance(current);
 
     // 分析実行
-    const result = await ctideWithAnchors(
+    const result = await analyzeWithAnchors(
       adapter,
       historyConverted,
       currentConverted,

@@ -6,7 +6,7 @@
 'use client';
 
 import type { Utterance } from '@atlas/core';
-import { toCTIDEUtterance } from '@atlas/core';
+import { toAnalyzerUtterance } from '@atlas/core';
 import { useCallback, useRef, useState } from 'react';
 
 export type Score = {
@@ -91,8 +91,8 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
 
       try {
         // 会話分析
-        const history = updatedDialogue.slice(0, -1).map(toCTIDEUtterance);
-        const current = toCTIDEUtterance(utterance);
+        const history = updatedDialogue.slice(0, -1).map(toAnalyzerUtterance);
+        const current = toAnalyzerUtterance(utterance);
 
         const response = await fetch('/api/analyze', {
           method: 'POST',

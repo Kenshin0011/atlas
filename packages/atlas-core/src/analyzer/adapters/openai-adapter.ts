@@ -1,12 +1,12 @@
 /**
- * OpenAI Adapter for CTIDE-Lite
+ * OpenAI Adapter for Conversation Analyzer
  * Uses text-embedding-3-small for embeddings
  * Approximates loss via cosine similarity in embedding space
  */
 
-import type { ModelAdapter } from '..';
+import type { ModelAdapter } from '../..';
 
-// Internal CTIDE Utterance type (matches the one in index.ts)
+// Internal Analyzer Utterance type (matches the one in index.ts)
 type Utterance = {
   id: string;
   text: string;

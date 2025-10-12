@@ -1,5 +1,5 @@
-// packages/ctide-lite/src/index.ts
-// CTIDE-Lite（学習なし・リアルタイム） TypeScript実装
+// packages/analyzer/src/index.ts
+// Conversation Analyzer（学習なし・リアルタイム） TypeScript実装
 // - 直近k文のΔスコア算出
 // - 帰無（シャッフル/ダミー）からp値化→BH-FDR
 // - 時間減衰、MMR多様化、重要アンカーメモリ
@@ -16,16 +16,16 @@ type Utterance = {
   speaker?: string; // 発話者（任意）
 };
 
-// CoreUtterance → CTIDE Utterance変換ヘルパー
-export const toCTIDEUtterance = (u: CoreUtterance): Utterance => ({
+// CoreUtterance → Analyzer Utterance変換ヘルパー
+export const toAnalyzerUtterance = (u: CoreUtterance): Utterance => ({
   id: String(u.id),
   text: u.text,
   ts: u.timestamp,
   speaker: u.speaker,
 });
 
-// CTIDE Utterance → CoreUtterance変換ヘルパー
-export const fromCTIDEUtterance = (u: Utterance, numericId?: number): CoreUtterance => ({
+// Analyzer Utterance → CoreUtterance変換ヘルパー
+export const fromAnalyzerUtterance = (u: Utterance, numericId?: number): CoreUtterance => ({
   id: numericId ?? Number.parseInt(u.id, 10),
   text: u.text,
   timestamp: u.ts ?? Date.now(),
@@ -50,7 +50,7 @@ export type ScoredUtterance = Utterance & {
   detail: ScoreDetail;
 };
 
-export type CTIDEOptions = {
+export type AnalyzerOptions = {
   k?: number; // 直近k文の厳密評価
   alphaMix?: number; // 損失/サプライザルの混合 (0..1)
   halfLifeTurns?: number; // 何発話で半減させるか
@@ -60,7 +60,7 @@ export type CTIDEOptions = {
   mmrLambda?: number; // 多様化強度 (0..1)
 };
 
-export const defaultOptions: Required<CTIDEOptions> = {
+export const defaultOptions: Required<AnalyzerOptions> = {
   k: 6,
   alphaMix: 0.6,
   halfLifeTurns: 20,
@@ -224,11 +224,11 @@ export class AnchorMemory {
 }
 
 // ---- コア：スコアリング & 選別 ----
-export const ctideLite = async (
+export const analyze = async (
   adapter: ModelAdapter,
   history: Utterance[],
   current: Utterance,
-  opts: CTIDEOptions = {}
+  opts: AnalyzerOptions = {}
 ): Promise<{ important: ScoredUtterance[]; scored: ScoredUtterance[]; nullScores: number[] }> => {
   const o = { ...defaultOptions, ...opts };
   const recent = history.slice(-o.k);
@@ -317,14 +317,14 @@ const shuffle = <T>(arr: T[]): T[] => {
 };
 
 // ---- 重要アンカー統合パイプ ----
-export const ctideWithAnchors = async (
+export const analyzeWithAnchors = async (
   adapter: ModelAdapter,
   history: Utterance[],
   current: Utterance,
   anchorMemory: AnchorMemory,
-  opts: CTIDEOptions = {}
+  opts: AnalyzerOptions = {}
 ) => {
-  const base = await ctideLite(adapter, history, current, opts);
+  const base = await analyze(adapter, history, current, opts);
   // アンカー上位Nも候補に含めて再評価（軽量版：コサイン類似でブースト）
   const anchors = anchorMemory.top(10);
   if (anchors.length) {
