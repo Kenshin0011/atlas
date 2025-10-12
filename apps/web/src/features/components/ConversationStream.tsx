@@ -7,11 +7,11 @@
 
 import type { Utterance } from '@atlas/core';
 import { formatTimeAgo } from '@atlas/core';
-import type { CtideScore } from '../hooks/useCtideStream';
+import type { Score } from '../hooks/useStream';
 
 type ConversationStreamProps = {
   dialogue: Utterance[];
-  scores: Map<number, CtideScore>;
+  scores: Map<number, Score>;
   onUtteranceClick?: (utterance: Utterance) => void;
   isAnalyzing?: boolean;
 };

@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useAuth } from '@/hooks/useAuth';
-import { type BoothInfo, createSession } from '@/lib/supabase/ctide-session';
+import { type BoothInfo, createSession } from '@/lib/supabase/session';
 import { emailToUsername } from '@/lib/supabase/username';
 
 type Session = {

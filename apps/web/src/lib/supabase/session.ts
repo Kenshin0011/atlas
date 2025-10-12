@@ -1,10 +1,10 @@
 /**
- * CTIDE Session Management
+ * Session Management
  * Supabaseを使った会話セッションの永続化
  */
 
 import type { Utterance } from '@atlas/core';
-import type { CtideScore } from '@/features/hooks/useCtideStream';
+import type { Score } from '@/features/hooks/useStream';
 import { supabase } from './client';
 import { emailToUsername } from './username';
 
@@ -82,12 +82,12 @@ export const saveUtterance = async (sessionId: string, utterance: Utterance): Pr
 };
 
 /**
- * CTIDEスコアを保存
+ * スコアを保存
  */
-export const saveCtideScore = async (
+export const saveScore = async (
   sessionId: string,
   utteranceId: number,
-  score: CtideScore
+  score: Score
 ): Promise<void> => {
   const { error } = await supabase.from('ctide_scores').insert({
     session_id: sessionId,
@@ -145,7 +145,7 @@ export const getSessionUtterances = async (sessionId: string): Promise<Utterance
 /**
  * セッションのスコアを取得
  */
-export const getSessionScores = async (sessionId: string): Promise<Map<number, CtideScore>> => {
+export const getSessionScores = async (sessionId: string): Promise<Map<number, Score>> => {
   const { data, error } = await supabase
     .from('ctide_scores')
     .select('utterance_id, score')
@@ -153,9 +153,9 @@ export const getSessionScores = async (sessionId: string): Promise<Map<number, C
 
   if (error) throw error;
 
-  const scoreMap = new Map<number, CtideScore>();
+  const scoreMap = new Map<number, Score>();
   for (const row of data) {
-    scoreMap.set(row.utterance_id, row.score as CtideScore);
+    scoreMap.set(row.utterance_id, row.score as Score);
   }
 
   return scoreMap;
@@ -196,7 +196,7 @@ export const subscribeToUtterances = (
  */
 export const subscribeToScores = (
   sessionId: string,
-  onScore: (utteranceId: number, score: CtideScore) => void
+  onScore: (utteranceId: number, score: Score) => void
 ) => {
   return supabase
     .channel(`scores:${sessionId}`)
@@ -210,7 +210,7 @@ export const subscribeToScores = (
       },
       payload => {
         const row = payload.new;
-        onScore(row.utterance_id as number, row.score as CtideScore);
+        onScore(row.utterance_id as number, row.score as Score);
       }
     )
     .subscribe();

@@ -1,5 +1,5 @@
 /**
- * CTIDE-Lite API Route
+ * Analysis API Route
  * Analyzes conversation history and returns important utterances
  */
 
@@ -59,19 +59,25 @@ export async function POST(req: NextRequest) {
 
     const adapter = getAdapter();
 
-    // Convert Core Utterances to CTIDE Utterances (id: number -> id: string)
-    const ctideHistory = history.map(toCTIDEUtterance);
-    const ctideCurrent = toCTIDEUtterance(current);
+    // Convert Core Utterances (id: number -> id: string)
+    const historyConverted = history.map(toCTIDEUtterance);
+    const currentConverted = toCTIDEUtterance(current);
 
-    // CTIDE-Lite実行
-    const result = await ctideWithAnchors(adapter, ctideHistory, ctideCurrent, anchorMemory, {
-      k: options.k ?? 6,
-      alphaMix: options.alphaMix ?? 0.6,
-      halfLifeTurns: options.halfLifeTurns ?? 20,
-      nullSamples: options.nullSamples ?? 8,
-      fdrAlpha: options.fdrAlpha ?? 0.1,
-      mmrLambda: options.mmrLambda ?? 0.7,
-    });
+    // 分析実行
+    const result = await ctideWithAnchors(
+      adapter,
+      historyConverted,
+      currentConverted,
+      anchorMemory,
+      {
+        k: options.k ?? 6,
+        alphaMix: options.alphaMix ?? 0.6,
+        halfLifeTurns: options.halfLifeTurns ?? 20,
+        nullSamples: options.nullSamples ?? 8,
+        fdrAlpha: options.fdrAlpha ?? 0.1,
+        mmrLambda: options.mmrLambda ?? 0.7,
+      }
+    );
 
     // 重要発言をアンカーメモリに追加
     for (const imp of result.important) {
@@ -94,7 +100,7 @@ export async function POST(req: NextRequest) {
       }
     );
   } catch (error) {
-    console.error('CTIDE API error:', error);
+    console.error('Analysis API error:', error);
     return new Response(
       JSON.stringify({
         error: 'Internal server error',

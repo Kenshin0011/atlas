@@ -12,15 +12,15 @@ import { useAdmin } from '@/hooks/useAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { emailToUsername } from '@/lib/supabase/username';
-import { useCtideStreamWithSupabase } from '../hooks/useCtideStreamWithSupabase';
+import { useStreamWithSupabase } from '../hooks/useStreamWithSupabase';
 import { ConversationStream } from './ConversationStream';
 import { ImportantHighlights } from './ImportantHighlights';
 
-type CtideAssistantProps = {
+type AssistantProps = {
   boothId: string;
 };
 
-export const CtideAssistant = ({ boothId }: CtideAssistantProps) => {
+export const Assistant = ({ boothId }: AssistantProps) => {
   const { user, loading: authLoading, signOut } = useAuth();
   const { isAdmin: isAdminUser } = useAdmin();
 
@@ -29,7 +29,7 @@ export const CtideAssistant = ({ boothId }: CtideAssistantProps) => {
     return user?.email ? emailToUsername(user.email) : null;
   }, [user?.email]);
 
-  // CTIDE Stream Hook with Supabase (既存セッションを読み込む)
+  // Stream Hook with Supabase (既存セッションを読み込む)
   const {
     sessionId,
     sessionInfo,
@@ -40,7 +40,7 @@ export const CtideAssistant = ({ boothId }: CtideAssistantProps) => {
     clear,
     isAnalyzing,
     anchorCount,
-  } = useCtideStreamWithSupabase({
+  } = useStreamWithSupabase({
     sessionId: boothId,
     onImportantDetected: important => {
       console.log('🟢 重要発言検出:', important);
@@ -122,7 +122,7 @@ export const CtideAssistant = ({ boothId }: CtideAssistantProps) => {
                 <div>
                   <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <span>🟢</span>
-                    <span>{sessionInfo?.boothName || 'CTIDE Assistant'}</span>
+                    <span>{sessionInfo?.boothName || 'Atlas Assistant'}</span>
                   </h1>
                   {sessionInfo?.tags && sessionInfo.tags.length > 0 && (
                     <div className="flex gap-1 mt-1">

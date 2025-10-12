@@ -1,6 +1,6 @@
 /**
  * Supabase Database Types
- * Generated types for CTIDE session storage
+ * Generated types for session storage
  */
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];

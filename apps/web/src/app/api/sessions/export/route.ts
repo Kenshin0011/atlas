@@ -66,7 +66,7 @@ export const GET = async (request: NextRequest) => {
       return new NextResponse(csv, {
         headers: {
           'Content-Type': 'text/csv',
-          'Content-Disposition': `attachment; filename="ctide-sessions-${new Date().toISOString()}.csv"`,
+          'Content-Disposition': `attachment; filename="sessions-${new Date().toISOString()}.csv"`,
         },
       });
     }
@@ -75,7 +75,7 @@ export const GET = async (request: NextRequest) => {
     return new NextResponse(JSON.stringify(detailedSessions, null, 2), {
       headers: {
         'Content-Type': 'application/json',
-        'Content-Disposition': `attachment; filename="ctide-sessions-${new Date().toISOString()}.json"`,
+        'Content-Disposition': `attachment; filename="sessions-${new Date().toISOString()}.json"`,
       },
     });
   } catch (error) {

@@ -7,11 +7,11 @@
 
 import type { Utterance } from '@atlas/core';
 import { formatTimeAgo } from '@atlas/core';
-import type { CtideScore } from '../hooks/useCtideStream';
+import type { Score } from '../hooks/useStream';
 
 type DebugScoreDetailsProps = {
   dialogue: Utterance[];
-  scores: Map<number, CtideScore>;
+  scores: Map<number, Score>;
 };
 
 export const DebugScoreDetails = ({ dialogue, scores }: DebugScoreDetailsProps) => {
@@ -21,7 +21,7 @@ export const DebugScoreDetails = ({ dialogue, scores }: DebugScoreDetailsProps) 
       const score = scores.get(utt.id);
       return { utterance: utt, score };
     })
-    .filter((item): item is { utterance: Utterance; score: CtideScore } => item.score !== undefined)
+    .filter((item): item is { utterance: Utterance; score: Score } => item.score !== undefined)
     .sort((a, b) => b.score.score - a.score.score);
 
   if (scoredUtterances.length === 0) {

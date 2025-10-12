@@ -6,7 +6,7 @@
 'use client';
 
 import { formatTimeAgo } from '@atlas/core';
-import type { ImportantUtterance } from '../hooks/useCtideStream';
+import type { ImportantUtterance } from '../hooks/useStream';
 
 type ImportantHighlightsProps = {
   importantList: ImportantUtterance[];

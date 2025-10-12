@@ -5,7 +5,7 @@
 
 'use client';
 
-import type { ImportantUtterance } from '../hooks/useCtideStream';
+import type { ImportantUtterance } from '../hooks/useStream';
 
 type DebugAnchorMemoryProps = {
   importantList: ImportantUtterance[];

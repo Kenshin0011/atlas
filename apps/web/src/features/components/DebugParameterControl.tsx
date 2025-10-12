@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 
-type CtideParameters = {
+type AnalysisParameters = {
   k: number;
   alphaMix: number;
   halfLifeTurns: number;
@@ -17,11 +17,11 @@ type CtideParameters = {
 };
 
 type DebugParameterControlProps = {
-  currentParams: CtideParameters;
-  onParamsChange?: (params: CtideParameters) => void;
+  currentParams: AnalysisParameters;
+  onParamsChange?: (params: AnalysisParameters) => void;
 };
 
-const DEFAULT_PARAMS: CtideParameters = {
+const DEFAULT_PARAMS: AnalysisParameters = {
   k: 6,
   alphaMix: 0.6,
   halfLifeTurns: 20,
@@ -34,10 +34,10 @@ export const DebugParameterControl = ({
   currentParams,
   onParamsChange,
 }: DebugParameterControlProps) => {
-  const [params, setParams] = useState<CtideParameters>(currentParams);
+  const [params, setParams] = useState<AnalysisParameters>(currentParams);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleChange = (key: keyof CtideParameters, value: number) => {
+  const handleChange = (key: keyof AnalysisParameters, value: number) => {
     const newParams = { ...params, [key]: value };
     setParams(newParams);
     onParamsChange?.(newParams);

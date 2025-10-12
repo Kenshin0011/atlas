@@ -1,6 +1,6 @@
 /**
  * Supabase Client
- * Browser-side Supabase client for CTIDE session management
+ * Browser-side Supabase client for session management
  * Uses cookie-based storage for SSR compatibility
  */
 
