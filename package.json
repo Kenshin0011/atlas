@@ -3,19 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
+    "dev": "pnpm with-env turbo run dev",
+    "build": "pnpm with-env turbo run build",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "biome:check": "biome check .",
-    "biome:fix": "biome check --write ."
+    "biome:fix": "biome check --write .",
+    "with-env": "dotenv -e .env.local --"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "dotenv-cli": "^10.0.0",
     "turbo": "^2.5.2"
   },
   "engines": {

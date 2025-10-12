@@ -1,5 +1,14 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local"],
+  "globalEnv": [
+    "OPENAI_API_KEY",
+    "OPENAI_ORGANIZATION",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_APP_NAME",
+    "NEXT_PUBLIC_ADMIN_USERNAMES"
+  ],
   "tasks": {
     "dev": {
       "cache": false,

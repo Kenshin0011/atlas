@@ -95,8 +95,8 @@ nvm use
 pnpm install
 
 # Set up environment variables
-cp apps/web/.env.example apps/web/.env.local
-# Edit apps/web/.env.local and add:
+cp .env.example .env.local
+# Edit .env.local and add:
 # - OPENAI_API_KEY
 # - NEXT_PUBLIC_SUPABASE_URL
 # - NEXT_PUBLIC_SUPABASE_ANON_KEY
