@@ -44,7 +44,7 @@ export const createSession = async (boothInfo?: BoothInfo): Promise<string> => {
       username: username,
       notes: boothInfo?.name || null,
       tags: boothInfo?.tags || null,
-      experiment_params: boothInfo?.experimentParams || null,
+      experiment_params: (boothInfo?.experimentParams as never) || null,
     })
     .select('id')
     .single();
@@ -128,7 +128,7 @@ export const getSessionInfo = async (sessionId: string): Promise<SessionInfo> =>
 export const getSessionUtterances = async (sessionId: string): Promise<Utterance[]> => {
   const { data, error } = await supabase
     .from('utterances')
-    .select('*')
+    .select('id, speaker, text, timestamp')
     .eq('session_id', sessionId)
     .order('created_at', { ascending: true });
 

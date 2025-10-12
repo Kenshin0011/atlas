@@ -8,7 +8,7 @@
 
 import type { Utterance } from '@atlas/core';
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { Suspense, useCallback, useMemo, useState } from 'react';
 import { useSpeechRecognition } from '@/features/conversation-assistant/hooks/useSpeechRecognition';
 import { useAuth } from '@/hooks/useAuth';
 import { emailToUsername } from '@/lib/supabase/username';
@@ -17,7 +17,7 @@ import { DebugAnchorMemory } from './DebugAnchorMemory';
 import { DebugParameterControl } from './DebugParameterControl';
 import { DebugScoreDetails } from './DebugScoreDetails';
 
-export const CtideDebugDashboard = () => {
+const CtideDebugDashboardContent = () => {
   const searchParams = useSearchParams();
   const sessionIdFromUrl = searchParams.get('session');
   const { user } = useAuth();
@@ -49,7 +49,6 @@ export const CtideDebugDashboard = () => {
     anchorCount,
   } = useCtideStreamWithSupabase({
     sessionId: sessionIdFromUrl || undefined,
-    speakerName: speakerName || undefined,
     ctideOptions: ctideParams,
     onImportantDetected: important => {
       console.log('[DEBUG] 🟢 重要発言検出:', important);
@@ -283,5 +282,19 @@ export const CtideDebugDashboard = () => {
         </div>
       )}
     </div>
+  );
+};
+
+export const CtideDebugDashboard = () => {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+          <div className="text-slate-600 dark:text-slate-400">読み込み中...</div>
+        </div>
+      }
+    >
+      <CtideDebugDashboardContent />
+    </Suspense>
   );
 };

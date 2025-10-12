@@ -6,12 +6,12 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useId, useState } from 'react';
+import { Suspense, useEffect, useId, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { signIn, signUp } from '@/lib/supabase/auth';
 import { usernameToEmail } from '@/lib/supabase/username';
 
-export default function LoginPage() {
+const LoginForm = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading } = useAuth();
@@ -54,27 +54,9 @@ export default function LoginPage() {
 
     try {
       if (mode === 'signin') {
-        const result = await signIn(email, password);
-        if (result.error) {
-          setError(
-            result.error.message === 'Invalid login credentials'
-              ? 'ユーザー名またはパスワードが間違っています'
-              : result.error.message
-          );
-          setIsSubmitting(false);
-          return;
-        }
+        await signIn(email, password);
       } else {
-        const result = await signUp(email, password);
-        if (result.error) {
-          setError(
-            result.error.message.includes('already registered')
-              ? 'このユーザー名は既に使用されています'
-              : result.error.message
-          );
-          setIsSubmitting(false);
-          return;
-        }
+        await signUp(email, password);
       }
 
       // 成功したらリダイレクト（少し待ってから強制リロード）
@@ -82,7 +64,15 @@ export default function LoginPage() {
       await new Promise(resolve => setTimeout(resolve, 500));
       window.location.href = redirectTo;
     } catch (err) {
-      setError(err instanceof Error ? err.message : '認証に失敗しました');
+      const errorMessage = err instanceof Error ? err.message : '認証に失敗しました';
+      // 既知のエラーメッセージを日本語に変換
+      if (errorMessage.includes('Invalid login credentials')) {
+        setError('ユーザー名またはパスワードが間違っています');
+      } else if (errorMessage.includes('already registered')) {
+        setError('このユーザー名は既に使用されています');
+      } else {
+        setError(errorMessage);
+      }
       setIsSubmitting(false);
     }
   };
@@ -210,5 +200,19 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+};
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+          <div className="text-slate-600 dark:text-slate-400">読み込み中...</div>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

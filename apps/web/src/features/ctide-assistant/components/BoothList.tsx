@@ -176,9 +176,7 @@ export const BoothList = () => {
           </h2>
 
           {loading ? (
-            <div className="text-center py-8 text-slate-600 dark:text-slate-400">
-              読み込み中...
-            </div>
+            <div className="text-center py-8 text-slate-600 dark:text-slate-400">読み込み中...</div>
           ) : existingBooths.length === 0 ? (
             <div className="text-center py-8 text-slate-500 dark:text-slate-400">
               まだブースがありません。新しいブースを作成してください。
