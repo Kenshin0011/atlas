@@ -1,26 +1,31 @@
 /**
  * CtideDebugDashboard Component
  * CTIDE分析結果のデバッグダッシュボード
+ * URLクエリパラメータ ?session=xxx で指定されたセッションをリアルタイム表示
  */
 
 'use client';
 
 import type { Utterance } from '@atlas/core';
-import { useCallback, useEffect, useState } from 'react';
-import { SpeakerNameModal } from '@/features/conversation-assistant/components/SpeakerNameModal';
+import { useSearchParams } from 'next/navigation';
+import { useCallback, useMemo, useState } from 'react';
 import { useSpeechRecognition } from '@/features/conversation-assistant/hooks/useSpeechRecognition';
-import {
-  getSpeakerName,
-  setSpeakerName,
-} from '@/features/conversation-assistant/utils/speaker-storage';
-import { useCtideStream } from '../hooks/useCtideStream';
+import { useAuth } from '@/hooks/useAuth';
+import { emailToUsername } from '@/lib/supabase/username';
+import { useCtideStreamWithSupabase } from '../hooks/useCtideStreamWithSupabase';
 import { DebugAnchorMemory } from './DebugAnchorMemory';
 import { DebugParameterControl } from './DebugParameterControl';
 import { DebugScoreDetails } from './DebugScoreDetails';
 
 export const CtideDebugDashboard = () => {
-  const [speakerName, setSpeakerNameState] = useState<string | null>(null);
-  const [showNameModal, setShowNameModal] = useState(false);
+  const searchParams = useSearchParams();
+  const sessionIdFromUrl = searchParams.get('session');
+  const { user } = useAuth();
+
+  // ユーザー名を自動的に話者名として使用
+  const speakerName = useMemo(() => {
+    return user?.email ? emailToUsername(user.email) : null;
+  }, [user?.email]);
   const [ctideParams, setCtideParams] = useState({
     k: 6,
     alphaMix: 0.6,
@@ -30,30 +35,26 @@ export const CtideDebugDashboard = () => {
     mmrLambda: 0.7,
   });
 
-  // CTIDE Stream Hook
-  const { dialogue, scores, importantList, addUtterance, clear, isAnalyzing, anchorCount } =
-    useCtideStream({
-      ctideOptions: ctideParams,
-      onImportantDetected: important => {
-        console.log('[DEBUG] 🟢 重要発言検出:', important);
-      },
-    });
-
-  // 話者名取得
-  useEffect(() => {
-    const savedName = getSpeakerName();
-    if (savedName) {
-      setSpeakerNameState(savedName);
-    } else {
-      setShowNameModal(true);
-    }
-  }, []);
-
-  const handleSpeakerNameSubmit = (name: string) => {
-    setSpeakerName(name);
-    setSpeakerNameState(name);
-    setShowNameModal(false);
-  };
+  // CTIDE Stream Hook with Supabase
+  // sessionIdが指定されている場合は既存セッションを表示（読み取り専用）
+  const {
+    sessionId,
+    sessionInfo,
+    dialogue,
+    scores,
+    importantList,
+    addUtterance,
+    clear,
+    isAnalyzing,
+    anchorCount,
+  } = useCtideStreamWithSupabase({
+    sessionId: sessionIdFromUrl || undefined,
+    speakerName: speakerName || undefined,
+    ctideOptions: ctideParams,
+    onImportantDetected: important => {
+      console.log('[DEBUG] 🟢 重要発言検出:', important);
+    },
+  });
 
   // 音声認識コールバック
   const handleTranscript = useCallback(
@@ -111,9 +112,6 @@ export const CtideDebugDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900">
-      {/* Speaker Name Modal */}
-      <SpeakerNameModal isOpen={showNameModal} onSubmit={handleSpeakerNameSubmit} />
-
       {/* ヘッダー */}
       <header className="bg-gradient-to-r from-purple-600 to-blue-600 shadow-lg">
         <div className="container mx-auto px-4 py-6">
@@ -123,68 +121,92 @@ export const CtideDebugDashboard = () => {
                 <span>🔬</span>
                 <span>CTIDE Debug Dashboard</span>
               </h1>
-              <p className="text-purple-100 mt-2">リアルタイム分析結果とパラメータ調整</p>
-              {speakerName && (
+              <p className="text-purple-100 mt-2">
+                {sessionIdFromUrl
+                  ? 'セッション表示モード（リアルタイム同期）'
+                  : 'リアルタイム分析結果とパラメータ調整'}
+              </p>
+              {user && (
                 <p className="text-xs text-purple-200 mt-1">
-                  話者: <span className="font-semibold">{speakerName}</span>
+                  ユーザー:{' '}
+                  <span className="font-semibold">{emailToUsername(user.email || '')}</span>
+                </p>
+              )}
+              {sessionId && (
+                <p className="text-xs text-purple-200 mt-1">
+                  セッションID: <span className="font-mono font-semibold">{sessionId}</span>
+                </p>
+              )}
+              {sessionInfo?.username && (
+                <p className="text-xs text-purple-200 mt-1">
+                  作成者: <span className="font-semibold">{sessionInfo.username}</span>
                 </p>
               )}
             </div>
 
-            {/* コントロール */}
+            {/* コントロール（読み取り専用モードでは無効化） */}
             <div className="flex items-center gap-3">
-              {isSupported ? (
-                !isListening ? (
-                  <button
-                    type="button"
-                    onClick={startListening}
-                    className="px-4 py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <title>開始</title>
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    開始
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={stopListening}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <title>停止</title>
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    停止
-                  </button>
-                )
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleManualAdd}
-                  className="px-4 py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors"
-                >
-                  テスト追加
-                </button>
-              )}
+              {!sessionIdFromUrl && (
+                <>
+                  {isSupported ? (
+                    !isListening ? (
+                      <button
+                        type="button"
+                        onClick={startListening}
+                        className="px-4 py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <title>開始</title>
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        開始
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={stopListening}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <title>停止</title>
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        停止
+                      </button>
+                    )
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleManualAdd}
+                      className="px-4 py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors"
+                    >
+                      テスト追加
+                    </button>
+                  )}
 
-              <button
-                type="button"
-                onClick={clear}
-                className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors"
-                disabled={dialogue.length === 0}
-              >
-                クリア
-              </button>
+                  <button
+                    type="button"
+                    onClick={clear}
+                    className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors"
+                    disabled={dialogue.length === 0}
+                  >
+                    クリア
+                  </button>
+                </>
+              )}
+              {sessionIdFromUrl && (
+                <div className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm">
+                  読み取り専用モード（リアルタイム同期中）
+                </div>
+              )}
             </div>
           </div>
 

@@ -1,10 +1,10 @@
 /**
- * CTIDE Assistant Page
- * 完全独立したCTIDE専用アシスタント
+ * CTIDE Page
+ * 会話ブースの一覧と作成
  */
 
-import { CtideAssistant } from '@/features/ctide-assistant/components';
+import { BoothList } from '@/features/ctide-assistant/components/BoothList';
 
 export default function CtidePage() {
-  return <CtideAssistant />;
+  return <BoothList />;
 }

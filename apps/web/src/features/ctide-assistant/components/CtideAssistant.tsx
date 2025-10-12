@@ -6,45 +6,47 @@
 'use client';
 
 import type { Utterance } from '@atlas/core';
-import { useCallback, useEffect, useState } from 'react';
-import { SpeakerNameModal } from '@/features/conversation-assistant/components/SpeakerNameModal';
+import Link from 'next/link';
+import { useCallback, useMemo } from 'react';
 import { useSpeechRecognition } from '@/features/conversation-assistant/hooks/useSpeechRecognition';
-import {
-  getSpeakerName,
-  setSpeakerName,
-} from '@/features/conversation-assistant/utils/speaker-storage';
-import { useCtideStream } from '../hooks/useCtideStream';
+import { useAdmin } from '@/hooks/useAdmin';
+import { useAuth } from '@/hooks/useAuth';
+import { emailToUsername } from '@/lib/supabase/username';
+import { useCtideStreamWithSupabase } from '../hooks/useCtideStreamWithSupabase';
 import { ConversationStream } from './ConversationStream';
 import { ImportantHighlights } from './ImportantHighlights';
 
-export const CtideAssistant = () => {
-  const [speakerName, setSpeakerNameState] = useState<string | null>(null);
-  const [showNameModal, setShowNameModal] = useState(false);
+type CtideAssistantProps = {
+  boothId: string;
+};
 
-  // CTIDE Stream Hook
-  const { dialogue, scores, importantList, addUtterance, clear, isAnalyzing, anchorCount } =
-    useCtideStream({
-      onImportantDetected: important => {
-        console.log('🟢 重要発言検出:', important);
-        // ここで通知などを追加可能
-      },
-    });
+export const CtideAssistant = ({ boothId }: CtideAssistantProps) => {
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { isAdmin: isAdminUser } = useAdmin();
 
-  // 話者名取得
-  useEffect(() => {
-    const savedName = getSpeakerName();
-    if (savedName) {
-      setSpeakerNameState(savedName);
-    } else {
-      setShowNameModal(true);
-    }
-  }, []);
+  // ユーザー名を自動的に話者名として使用
+  const speakerName = useMemo(() => {
+    return user?.email ? emailToUsername(user.email) : null;
+  }, [user?.email]);
 
-  const handleSpeakerNameSubmit = (name: string) => {
-    setSpeakerName(name);
-    setSpeakerNameState(name);
-    setShowNameModal(false);
-  };
+  // CTIDE Stream Hook with Supabase (既存セッションを読み込む)
+  const {
+    sessionId,
+    sessionInfo,
+    dialogue,
+    scores,
+    importantList,
+    addUtterance,
+    clear,
+    isAnalyzing,
+    anchorCount,
+  } = useCtideStreamWithSupabase({
+    sessionId: boothId,
+    onImportantDetected: important => {
+      console.log('🟢 重要発言検出:', important);
+      // ここで通知などを追加可能
+    },
+  });
 
   // 音声認識コールバック
   const handleTranscript = useCallback(
@@ -97,30 +99,84 @@ export const CtideAssistant = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900">
-      {/* Speaker Name Modal */}
-      <SpeakerNameModal isOpen={showNameModal} onSubmit={handleSpeakerNameSubmit} />
-
       {/* ヘッダー */}
       <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <span>🟢</span>
-                <span>CTIDE Assistant</span>
-              </h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                Context-aware Temporal Information Detection Engine
-              </p>
-              {speakerName && (
-                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
-                  話者: <span className="font-semibold">{speakerName}</span>
+              <div className="flex items-center gap-3 mb-2">
+                <Link
+                  href="/ctide"
+                  className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <title>ブース一覧に戻る</title>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                    />
+                  </svg>
+                </Link>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <span>🟢</span>
+                    <span>{sessionInfo?.boothName || 'CTIDE Assistant'}</span>
+                  </h1>
+                  {sessionInfo?.tags && sessionInfo.tags.length > 0 && (
+                    <div className="flex gap-1 mt-1">
+                      {sessionInfo.tags.map(tag => (
+                        <span
+                          key={tag}
+                          className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {user && (
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                  ユーザー:{' '}
+                  <span className="font-semibold">{emailToUsername(user.email || '')}</span>
                 </p>
+              )}
+              {isAdminUser && (
+                <div className="flex items-center gap-3 mt-2">
+                  <Link
+                    href="/ctide/sessions"
+                    className="text-xs text-orange-600 dark:text-orange-400 underline hover:text-orange-700"
+                  >
+                    セッション管理
+                  </Link>
+                  {sessionId && (
+                    <a
+                      href={`/ctide/debug?session=${sessionId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 dark:text-blue-400 underline hover:text-blue-700"
+                    >
+                      デバッグ
+                    </a>
+                  )}
+                </div>
               )}
             </div>
 
             {/* コントロール */}
             <div className="flex items-center gap-3">
+              {!authLoading && user && (
+                <button
+                  type="button"
+                  onClick={signOut}
+                  className="px-3 py-1 text-sm bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors"
+                >
+                  ログアウト
+                </button>
+              )}
               {isSupported ? (
                 !isListening ? (
                   <button
