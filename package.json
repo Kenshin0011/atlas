@@ -14,7 +14,6 @@
     "with-env": "dotenv -e .env.local --",
     "analyze": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run analyze",
     "evaluate": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run evaluate",
-    "convert": "pnpm --filter @atlas/experiments run convert",
     "convert-batch": "pnpm --filter @atlas/experiments run convert-batch"
   },
   "devDependencies": {

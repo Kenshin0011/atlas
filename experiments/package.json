@@ -6,7 +6,6 @@
   "scripts": {
     "analyze": "tsx scripts/analyze.ts",
     "evaluate": "tsx scripts/evaluate.ts",
-    "convert": "tsx scripts/convert-txt-to-json.ts",
     "convert-batch": "tsx scripts/convert-batch-txt-to-json.ts"
   },
   "dependencies": {
