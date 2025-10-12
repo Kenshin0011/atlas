@@ -6,7 +6,7 @@
 
 'use client';
 
-import type { Utterance } from '@atlas/core';
+import { defaultOptions, type Utterance } from '@atlas/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createSession,
@@ -199,12 +199,12 @@ export const useStreamWithSupabase = (
             history,
             current,
             options: {
-              k: analysisOptions.k ?? 6,
-              alphaMix: analysisOptions.alphaMix ?? 0.6,
-              halfLifeTurns: analysisOptions.halfLifeTurns ?? 20,
-              nullSamples: analysisOptions.nullSamples ?? 8,
-              fdrAlpha: analysisOptions.fdrAlpha ?? 0.1,
-              mmrLambda: analysisOptions.mmrLambda ?? 0.7,
+              k: analysisOptions.k ?? defaultOptions.k,
+              alphaMix: analysisOptions.alphaMix ?? defaultOptions.alphaMix,
+              halfLifeTurns: analysisOptions.halfLifeTurns ?? defaultOptions.halfLifeTurns,
+              nullSamples: analysisOptions.nullSamples ?? defaultOptions.nullSamples,
+              fdrAlpha: analysisOptions.fdrAlpha ?? defaultOptions.fdrAlpha,
+              mmrLambda: analysisOptions.mmrLambda ?? defaultOptions.mmrLambda,
             },
           }),
         });

@@ -257,7 +257,7 @@ score_boosted = score_raw + 0.2 × similarity(current, anchors)
 
 | パラメータ | デフォルト | 説明 |
 |-----------|----------|------|
-| `k` | 6 | 直近k文を厳密評価 |
+| `k` | 3 | 直近k文を厳密評価 |
 | `alphaMix` | 0.6 | 損失重視度 (0..1) |
 | `halfLifeTurns` | 20 | 半減期（ターン数） |
 | `nullSamples` | 8 | 帰無サンプル数 |
@@ -285,7 +285,7 @@ score_boosted = score_raw + 0.2 × similarity(current, anchors)
 
 ```typescript
 export const defaultOptions: Required<AnalyzerOptions> = {
-  k: 6,                    // 直近k文の厳密評価
+  k: 3,                   // 直近k文の厳密評価
   alphaMix: 0.6,          // 損失重視度 (0..1)
   halfLifeTurns: 20,      // 半減期（ターン数）
   nullSamples: 8,         // 帰無サンプル数

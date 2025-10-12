@@ -29,7 +29,7 @@ export type AnalyzerOptions = {
  * デフォルトオプション
  */
 export const defaultOptions: Required<AnalyzerOptions> = {
-  k: 6,
+  k: 3,
   alphaMix: 0.6,
   halfLifeTurns: 20,
   nullSamples: 8,

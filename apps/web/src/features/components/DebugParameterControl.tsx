@@ -5,6 +5,7 @@
 
 'use client';
 
+import { defaultOptions } from '@atlas/core';
 import { useState } from 'react';
 
 type AnalysisParameters = {
@@ -21,13 +22,14 @@ type DebugParameterControlProps = {
   onParamsChange?: (params: AnalysisParameters) => void;
 };
 
+// @atlas/core の defaultOptions を使用
 const DEFAULT_PARAMS: AnalysisParameters = {
-  k: 6,
-  alphaMix: 0.6,
-  halfLifeTurns: 20,
-  nullSamples: 8,
-  fdrAlpha: 0.1,
-  mmrLambda: 0.7,
+  k: defaultOptions.k,
+  alphaMix: defaultOptions.alphaMix,
+  halfLifeTurns: defaultOptions.halfLifeTurns,
+  nullSamples: defaultOptions.nullSamples,
+  fdrAlpha: defaultOptions.fdrAlpha,
+  mmrLambda: defaultOptions.mmrLambda,
 };
 
 export const DebugParameterControl = ({

@@ -3,8 +3,13 @@
  * Analyzes conversation history and returns important utterances
  */
 
-import type { Utterance } from '@atlas/core';
-import { AnchorMemory, analyzeWithAnchors, OpenAIAdapter } from '@atlas/core';
+import {
+  AnchorMemory,
+  analyzeWithAnchors,
+  defaultOptions,
+  OpenAIAdapter,
+  type Utterance,
+} from '@atlas/core';
 import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
@@ -54,14 +59,14 @@ export async function POST(req: NextRequest) {
 
     const adapter = getAdapter();
 
-    // 分析実行
+    // 分析実行 (@atlas/core の defaultOptions を使用)
     const result = await analyzeWithAnchors(adapter, history, current, anchorMemory, {
-      k: options.k ?? 6,
-      alphaMix: options.alphaMix ?? 0.6,
-      halfLifeTurns: options.halfLifeTurns ?? 20,
-      nullSamples: options.nullSamples ?? 8,
-      fdrAlpha: options.fdrAlpha ?? 0.1,
-      mmrLambda: options.mmrLambda ?? 0.7,
+      k: options.k ?? defaultOptions.k,
+      alphaMix: options.alphaMix ?? defaultOptions.alphaMix,
+      halfLifeTurns: options.halfLifeTurns ?? defaultOptions.halfLifeTurns,
+      nullSamples: options.nullSamples ?? defaultOptions.nullSamples,
+      fdrAlpha: options.fdrAlpha ?? defaultOptions.fdrAlpha,
+      mmrLambda: options.mmrLambda ?? defaultOptions.mmrLambda,
     });
 
     // 重要発言をアンカーメモリに追加

@@ -102,8 +102,8 @@ const current: Utterance = {
 
 // 3. 分析を実行
 const result = await analyze(adapter, history, current, {
-  k: 6,              // 直近6文を評価
-  fdrAlpha: 0.1,    // FDR閾値
+  k: 3,              // 直近3文を評価
+  fdrAlpha: 0.1,     // FDR閾値
   halfLifeTurns: 20, // 20ターンで半減
 });
 
@@ -130,7 +130,7 @@ const result = await analyzeWithAnchors(
   history,
   current,
   anchorMemory,
-  { k: 6, fdrAlpha: 0.1 }
+  { k: 3, fdrAlpha: 0.1 }
 );
 
 // 重要発話をアンカーメモリに追加
@@ -200,7 +200,7 @@ type Utterance = {
 
 ```typescript
 type AnalyzerOptions = {
-  k?: number;                // 直近k文を厳密評価 (default: 6)
+  k?: number;                // 直近k文を厳密評価 (default: 3)
   alphaMix?: number;         // 損失重視度 0..1 (default: 0.6)
   halfLifeTurns?: number;    // 半減期ターン数 (default: 20)
   nullSamples?: number;      // 帰無サンプル数 (default: 8)
@@ -378,7 +378,7 @@ score_final = (alphaMix × Δ + (1-alphaMix) × surprisal) × w(age)
 ## 📊 パフォーマンス
 
 **計算量**: O(k × n) per utterance
-- `k`: 評価対象の発話数（default: 6）
+- `k`: 評価対象の発話数（default: 3）
 - `n`: nullSamples数（default: 8）
 
 **典型的なレイテンシ**（OpenAIAdapter使用時）:

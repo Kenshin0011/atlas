@@ -6,7 +6,7 @@
 
 'use client';
 
-import type { Utterance } from '@atlas/core';
+import { defaultOptions, type Utterance } from '@atlas/core';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,13 +26,15 @@ const DebugDashboardContent = () => {
   const speakerName = useMemo(() => {
     return user?.email ? emailToUsername(user.email) : null;
   }, [user?.email]);
+
+  // @atlas/core の defaultOptions を使用
   const [params, setParams] = useState({
-    k: 6,
-    alphaMix: 0.6,
-    halfLifeTurns: 20,
-    nullSamples: 8,
-    fdrAlpha: 0.1,
-    mmrLambda: 0.7,
+    k: defaultOptions.k,
+    alphaMix: defaultOptions.alphaMix,
+    halfLifeTurns: defaultOptions.halfLifeTurns,
+    nullSamples: defaultOptions.nullSamples,
+    fdrAlpha: defaultOptions.fdrAlpha,
+    mmrLambda: defaultOptions.mmrLambda,
   });
 
   // Stream Hook with Supabase
