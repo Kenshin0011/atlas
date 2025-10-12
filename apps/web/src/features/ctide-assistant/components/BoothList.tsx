@@ -7,11 +7,19 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useId, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { type BoothInfo, createSession } from '@/lib/supabase/ctide-session';
 import { emailToUsername } from '@/lib/supabase/username';
+
+type Session = {
+  id: string;
+  created_at: string;
+  username: string | null;
+  notes: string | null;
+  tags: string[] | null;
+};
 
 export const BoothList = () => {
   const router = useRouter();
@@ -21,6 +29,26 @@ export const BoothList = () => {
   const [boothName, setBoothName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingBooths, setExistingBooths] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // 既存ブース一覧を取得
+  const fetchBooths = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/sessions');
+      const data = await response.json();
+      setExistingBooths(data.sessions || []);
+    } catch (err) {
+      console.error('Failed to fetch booths:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBooths();
+  }, [fetchBooths]);
 
   const handleCreateBooth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +61,8 @@ export const BoothList = () => {
       };
 
       const sessionId = await createSession(boothInfo);
+      // ブースリストを更新してから遷移
+      await fetchBooths();
       router.push(`/ctide/booth/${sessionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ブース作成に失敗しました');
@@ -130,13 +160,79 @@ export const BoothList = () => {
         </div>
 
         {/* 説明テキスト */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
           <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">
             ℹ️ ブースについて
           </h3>
           <p className="text-sm text-blue-700 dark:text-blue-400">
             ブースは実験データを整理するための単位です。ブースごとに会話が記録され、後から分析できます。
           </p>
+        </div>
+
+        {/* 既存ブース一覧 */}
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">
+            既存のブース
+          </h2>
+
+          {loading ? (
+            <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+              読み込み中...
+            </div>
+          ) : existingBooths.length === 0 ? (
+            <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+              まだブースがありません。新しいブースを作成してください。
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {existingBooths.map(booth => (
+                <Link
+                  key={booth.id}
+                  href={`/ctide/booth/${booth.id}`}
+                  className="block p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-slate-800 dark:text-slate-100 mb-1">
+                        {booth.notes || '(未設定)'}
+                      </h3>
+                      <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+                        <span>作成者: {booth.username || '匿名'}</span>
+                        <span>•</span>
+                        <span>{new Date(booth.created_at).toLocaleString('ja-JP')}</span>
+                      </div>
+                      {booth.tags && booth.tags.length > 0 && (
+                        <div className="flex gap-1 mt-2">
+                          {booth.tags.map(tag => (
+                            <span
+                              key={tag}
+                              className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <svg
+                      className="w-5 h-5 text-slate-400 dark:text-slate-500 mt-1"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <title>開く</title>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>

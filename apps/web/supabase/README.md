@@ -3,10 +3,12 @@
 ## 概要
 
 CTIDE AssistantはSupabaseを使用して以下を実現します:
-- ✅ 会話セッションの永続化
+- ✅ ユーザー名ベースの認証（メールアドレス不要）
+- ✅ ブース単位での会話セッション管理
+- ✅ マルチユーザー対応（複数人での会話をサポート）
+- ✅ Row Level Security (RLS) による安全なデータアクセス
+- ✅ 管理画面でのデータ可視化・エクスポート
 - ✅ リアルタイム同期（別タブ・別ブラウザでデバッグ可能）
-- ✅ ユーザー認証とセッション所有者管理
-- ✅ URLで会話を共有可能（誰でも閲覧、オーナーのみ編集）
 
 ## 1. Supabaseプロジェクトの作成
 
@@ -32,6 +34,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 # Application Configuration
 NEXT_PUBLIC_APP_NAME=ATLAS
+
+# Admin Users (comma-separated)
+NEXT_PUBLIC_ADMIN_USERNAMES=admin
+
+# Username Domain (default: test.com)
+NEXT_PUBLIC_USERNAME_DOMAIN=test.com
 ```
 
 ## 3. マイグレーションの実行
@@ -40,9 +48,9 @@ NEXT_PUBLIC_APP_NAME=ATLAS
 
 1. Supabase Dashboard > SQL Editor を開く
 2. 「New Query」をクリック
-3. `apps/web/supabase/migrations/001_create_ctide_tables.sql` の内容をコピー&ペースト
+3. `migrations/001_create_ctide_tables.sql` の内容をコピー&ペースト
 4. 「Run」をクリック
-5. 続けて `002_add_user_id_to_sessions.sql` も実行
+5. エラーがなければ `002_...sql` と `003_...sql` も順番に実行
 
 ### 方法B: Supabase CLI
 
@@ -77,81 +85,125 @@ supabase db push
 ```sql
 - id: UUID (主キー)
 - created_at: timestamp
-- speaker_name: text
-- user_id: UUID (作成者、auth.usersへの外部キー)
-- user_email: text (表示用)
+- user_id: UUID (auth.usersへの外部キー)
+- username: text (作成者のユーザー名)
+- notes: text (ブース名)
+- tags: text[] (タグ配列)
+- experiment_params: jsonb (実験パラメータ)
 ```
-- セッションの所有者を記録
-- URLで共有可能（誰でも閲覧、オーナーのみ編集）
+- ブース単位での会話セッション管理
+- notesフィールドにブース名を保存
 
 ### utterances
 ```sql
 - id: bigserial (主キー)
 - session_id: UUID (sessionsへの外部キー)
-- speaker: text
-- text: text
-- timestamp: bigint
+- user_id: UUID (発話者のauth.users ID)
+- username: text (発話者のユーザー名)
+- speaker: text (表示用話者名、usernameと同じ)
+- text: text (発話内容)
+- timestamp: bigint (UNIX timestamp)
 - created_at: timestamp
 ```
-- リアルタイム購読有効
-- セッションオーナーのみ追加可能
+- マルチユーザー対応（RLSで保護）
+- 認証済みユーザーのみ自分の発話を追加可能
 
-### ctide_scores
+### dependencies
+```sql
+- id: bigserial (主キー)
+- session_id: UUID
+- from_utterance_id: bigint (参照元発話)
+- to_utterance_id: bigint (参照先発話)
+- weight: double precision (依存度)
+- type: text (local/topic/global)
+- created_at: timestamp
+```
+- 発話間の時間的依存関係を記録
+
+### important_utterances
 ```sql
 - id: bigserial (主キー)
 - session_id: UUID
 - utterance_id: bigint
-- score: jsonb (CtideScore全体)
+- importance_score: double precision
 - created_at: timestamp
 ```
-- リアルタイム購読有効
-- JSON形式で詳細スコアを保存
+- 重要発言として検出された発話を記録
+
+### session_stats (View)
+```
+- session_id: UUID
+- utterance_count: bigint (発話数)
+- important_count: bigint (重要発言数)
+- avg_score: double precision (平均スコア)
+```
+- 管理画面用の統計ビュー（自動更新）
 
 ## 6. 使い方
 
-### A. 会話を開始（/ctide）
+### A. ログイン（/login）
 
-1. `/ctide` にアクセス
-2. ログインボタンをクリック（初回のみ）
-3. サインアップ（メールアドレス + パスワード）
-4. 話者名を入力
-5. 「開始」ボタンで会話開始
-6. ヘッダーに「デバッグURL」が表示される
+1. `/login` にアクセス
+2. ユーザー名を入力（3文字以上、英数字と`_`、`-`のみ）
+3. パスワードを入力
+4. 「サインイン」または「サインアップ」
+5. 成功すると `/ctide` にリダイレクト
 
-### B. デバッグモードで表示（/ctide/debug）
+### B. ブース作成（/ctide）
 
-**同じブラウザで別タブ:**
-1. デバッグURLをコピー（例: `/ctide/debug?session=xxx`）
-2. 新しいタブで開く
-3. リアルタイムで会話とスコアが同期される
+1. ブース名を入力（例: 「実験A - 条件1」）
+2. 「ブースを作成して会話を開始」をクリック
+3. 自動的に `/ctide/booth/[booth_id]` に遷移
 
-**別のブラウザ・別の人と共有:**
-1. デバッグURLを共有
-2. 相手が開くと読み取り専用モードで表示
-3. リアルタイムで会話を監視可能
+### C. 会話（/ctide/booth/[booth_id]）
 
-### C. プログラムから使用
+1. 「開始」ボタンで音声認識を開始
+2. 話すと自動的に発話が記録される
+3. 重要発言は緑色でハイライト
+4. 「停止」で録音を停止
+5. 「クリア」で会話をリセット
+
+### D. 管理画面（/ctide/sessions） - 管理者のみ
+
+1. すべてのセッションを一覧表示
+2. ブース名、ユーザー名、統計情報を確認
+3. 「JSON出力」または「CSV出力」でデータをエクスポート
+4. 「表示」リンクでデバッグビューを開く
+
+### E. デバッグビュー（/ctide/debug?session=xxx）
+
+1. URLパラメータでセッションIDを指定
+2. リアルタイムで会話を監視
+3. 依存関係グラフを可視化
+4. 管理者のみアクセス可能
+
+### F. プログラムから使用
 
 ```typescript
 import { createSession, saveUtterance, getSessionInfo } from '@/lib/supabase/ctide-session';
+import type { BoothInfo } from '@/lib/supabase/ctide-session';
 
-// セッション作成（ログイン必須）
-const sessionId = await createSession('John');
+// ブース作成（ログイン必須）
+const boothInfo: BoothInfo = {
+  name: '実験A - 条件1',
+};
+const sessionId = await createSession(boothInfo);
 
-// 発話追加
+// 発話追加（認証済みユーザーのみ）
 await saveUtterance(sessionId, {
   id: 0,
-  speaker: 'John',
+  speaker: 'john',  // ログイン中のusername
   text: 'Hello world',
   timestamp: Date.now(),
 });
 
 // セッション情報取得
 const info = await getSessionInfo(sessionId);
-console.log(info.userEmail); // 作成者のメールアドレス
+console.log(info.username);   // 作成者のユーザー名
+console.log(info.boothName);  // ブース名
 ```
 
-### D. リアルタイム購読
+### G. リアルタイム購読
 
 ```typescript
 import { subscribeToUtterances } from '@/lib/supabase/ctide-session';
@@ -184,11 +236,13 @@ channel.unsubscribe();
 
 ## 8. セキュリティ設定
 
-現在の設定:
-- ✅ 誰でも全セッションを閲覧可能（URLで共有）
-- ✅ ログインユーザーのみセッション作成可能
-- ✅ セッションオーナーのみ発話追加・スコア保存可能
-- ✅ セッションオーナーのみ更新・削除可能
+現在の設定（Row Level Security）:
+- ✅ 誰でも全セッション・発話を閲覧可能（SELECT）
+- ✅ ログインユーザーのみセッション作成可能（INSERT）
+- ✅ 認証済みユーザーのみ自分の発話を追加可能（INSERT）
+  - RLSポリシー: `auth.uid() = user_id AND speaker = username`
+- ✅ セッション作成者のみ更新・削除可能（UPDATE/DELETE）
+- ✅ 管理画面は環境変数で指定したユーザーのみアクセス可能
 
-この設定は **デバッグ・実験目的** に最適化されています。
-本番環境では追加のアクセス制御を検討してください。
+この設定は **実験・研究目的** に最適化されています。
+マルチユーザー会話を安全にサポートし、なりすましを防止します。
