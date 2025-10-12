@@ -11,7 +11,11 @@
     "format:check": "biome format .",
     "biome:check": "biome check .",
     "biome:fix": "biome check --write .",
-    "with-env": "dotenv -e .env.local --"
+    "with-env": "dotenv -e .env.local --",
+    "analyze": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run analyze",
+    "evaluate": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run evaluate",
+    "convert": "pnpm --filter @atlas/experiments run convert",
+    "convert-batch": "pnpm --filter @atlas/experiments run convert-batch"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.5",

@@ -1,0 +1,128 @@
+{
+  "metadata": {
+    "name": "サンプル会話データセット",
+    "description": "ATLAS分析のサンプルデータ。会議での議論を模擬。",
+    "created_at": "2025-01-15T00:00:00Z",
+    "source": "sample",
+    "ground_truth": true
+  },
+  "conversations": [
+    {
+      "id": "conv_001",
+      "utterances": [
+        {
+          "id": 1,
+          "text": "今日のミーティングを始めます",
+          "timestamp": 1705276800000,
+          "speaker": "A"
+        },
+        {
+          "id": 2,
+          "text": "よろしくお願いします",
+          "timestamp": 1705276805000,
+          "speaker": "B"
+        },
+        {
+          "id": 3,
+          "text": "まず、新製品の開発スケジュールについて確認します",
+          "timestamp": 1705276810000,
+          "speaker": "A"
+        },
+        {
+          "id": 4,
+          "text": "はい",
+          "timestamp": 1705276815000,
+          "speaker": "C"
+        },
+        {
+          "id": 5,
+          "text": "現在、設計フェーズが完了したところです",
+          "timestamp": 1705276820000,
+          "speaker": "B"
+        },
+        {
+          "id": 6,
+          "text": "次はプロトタイプ作成に移行します",
+          "timestamp": 1705276825000,
+          "speaker": "B"
+        },
+        {
+          "id": 7,
+          "text": "プロトタイプの完成は来月末を予定しています",
+          "timestamp": 1705276830000,
+          "speaker": "B"
+        },
+        {
+          "id": 8,
+          "text": "分かりました",
+          "timestamp": 1705276835000,
+          "speaker": "A"
+        },
+        {
+          "id": 9,
+          "text": "予算についてですが、現状問題ありませんか",
+          "timestamp": 1705276840000,
+          "speaker": "A"
+        },
+        {
+          "id": 10,
+          "text": "はい、今のところ順調です",
+          "timestamp": 1705276845000,
+          "speaker": "C"
+        },
+        {
+          "id": 11,
+          "text": "ただし、材料費が若干上昇しています",
+          "timestamp": 1705276850000,
+          "speaker": "C"
+        },
+        {
+          "id": 12,
+          "text": "そのため、追加で50万円の予算が必要になる可能性があります",
+          "timestamp": 1705276855000,
+          "speaker": "C"
+        },
+        {
+          "id": 13,
+          "text": "了解しました。承認プロセスを進めます",
+          "timestamp": 1705276860000,
+          "speaker": "A"
+        },
+        {
+          "id": 14,
+          "text": "ありがとうございます",
+          "timestamp": 1705276865000,
+          "speaker": "C"
+        },
+        {
+          "id": 15,
+          "text": "他に議題はありますか",
+          "timestamp": 1705276870000,
+          "speaker": "A"
+        },
+        {
+          "id": 16,
+          "text": "特にありません",
+          "timestamp": 1705276875000,
+          "speaker": "B"
+        },
+        {
+          "id": 17,
+          "text": "では、次回は来週の同じ時間でお願いします",
+          "timestamp": 1705276880000,
+          "speaker": "A"
+        },
+        {
+          "id": 18,
+          "text": "承知しました",
+          "timestamp": 1705276885000,
+          "speaker": "B"
+        }
+      ],
+      "annotations": {
+        "important_ids": [3, 7, 12, 17],
+        "notes": "話題の転換点と重要な決定事項を重要発話として選択"
+      }
+    }
+  ]
+}

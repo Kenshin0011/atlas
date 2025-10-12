@@ -1,0 +1,16 @@
+# 実験結果（大きなファイルになるため除外）
+results/*
+!results/.gitkeep
+
+# データセット（機密情報を含む可能性）
+datasets/*.json
+!datasets/sample.json
+datasets/*.txt
+
+# Node.js
+node_modules/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
