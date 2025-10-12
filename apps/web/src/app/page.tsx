@@ -4,6 +4,6 @@
 
 import { BoothList } from '@/features/components/BoothList';
 
-export default function CtidePage() {
+export default function HomePage() {
   return <BoothList />;
 }

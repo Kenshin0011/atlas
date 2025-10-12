@@ -1,10 +1,10 @@
 /**
- * CTIDE Debug Dashboard Page
- * CTIDE分析結果のデバッグと調整
+ * Debug Dashboard Page
+ * 分析結果のデバッグと調整
  */
 
-import { CtideDebugDashboard } from '@/features/components/CtideDebugDashboard';
+import { DebugDashboard } from "@/features/components/DebugDashboard";
 
-export default function CtideDebugPage() {
-  return <CtideDebugDashboard />;
+export default function DebugPage() {
+  return <DebugDashboard />;
 }

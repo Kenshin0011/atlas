@@ -79,7 +79,7 @@ export const BoothList = () => {
             <div>
               <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <span>🟢</span>
-                <span>CTIDE Assistant</span>
+                <span>Atlas</span>
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 会話ブースを選択または作成

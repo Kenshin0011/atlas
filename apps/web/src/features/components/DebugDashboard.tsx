@@ -1,32 +1,32 @@
 /**
- * CtideDebugDashboard Component
- * CTIDE分析結果のデバッグダッシュボード
+ * DebugDashboard Component
+ * 分析結果のデバッグダッシュボード
  * URLクエリパラメータ ?session=xxx で指定されたセッションをリアルタイム表示
  */
 
-'use client';
+"use client";
 
-import type { Utterance } from '@atlas/core';
-import { useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useMemo, useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
-import { emailToUsername } from '@/lib/supabase/username';
-import { useCtideStreamWithSupabase } from '../hooks/useCtideStreamWithSupabase';
-import { DebugAnchorMemory } from './DebugAnchorMemory';
-import { DebugParameterControl } from './DebugParameterControl';
-import { DebugScoreDetails } from './DebugScoreDetails';
+import type { Utterance } from "@atlas/core";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useMemo, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { emailToUsername } from "@/lib/supabase/username";
+import { useCtideStreamWithSupabase } from "../hooks/useCtideStreamWithSupabase";
+import { DebugAnchorMemory } from "./DebugAnchorMemory";
+import { DebugParameterControl } from "./DebugParameterControl";
+import { DebugScoreDetails } from "./DebugScoreDetails";
 
-const CtideDebugDashboardContent = () => {
+const DebugDashboardContent = () => {
   const searchParams = useSearchParams();
-  const sessionIdFromUrl = searchParams.get('session');
+  const sessionIdFromUrl = searchParams.get("session");
   const { user } = useAuth();
 
   // ユーザー名を自動的に話者名として使用
   const speakerName = useMemo(() => {
     return user?.email ? emailToUsername(user.email) : null;
   }, [user?.email]);
-  const [ctideParams, setCtideParams] = useState({
+  const [params, setParams] = useState({
     k: 6,
     alphaMix: 0.6,
     halfLifeTurns: 20,
@@ -49,9 +49,9 @@ const CtideDebugDashboardContent = () => {
     anchorCount,
   } = useCtideStreamWithSupabase({
     sessionId: sessionIdFromUrl || undefined,
-    ctideOptions: ctideParams,
-    onImportantDetected: important => {
-      console.log('[DEBUG] 🟢 重要発言検出:', important);
+    ctideOptions: params,
+    onImportantDetected: (important) => {
+      console.log("[DEBUG] 🟢 重要発言検出:", important);
     },
   });
 
@@ -66,7 +66,7 @@ const CtideDebugDashboardContent = () => {
           timestamp: Date.now(),
         };
 
-        console.log('[DEBUG] 📝 新しい発話:', newUtterance);
+        console.log("[DEBUG] 📝 新しい発話:", newUtterance);
         addUtterance(newUtterance);
       }
     },
@@ -74,26 +74,27 @@ const CtideDebugDashboardContent = () => {
   );
 
   // 音声認識
-  const { isListening, startListening, stopListening, isSupported } = useSpeechRecognition({
-    onTranscript: handleTranscript,
-    onError: error => {
-      console.error('[DEBUG] ❌ 音声認識エラー:', error);
-    },
-  });
+  const { isListening, startListening, stopListening, isSupported } =
+    useSpeechRecognition({
+      onTranscript: handleTranscript,
+      onError: (error) => {
+        console.error("[DEBUG] ❌ 音声認識エラー:", error);
+      },
+    });
 
   // 手動で発話追加（テスト用）
   const handleManualAdd = () => {
     if (!speakerName) return;
 
     const testTexts = [
-      '今日の会議では新しいプロジェクトについて話します',
-      '予算は500万円を予定しています',
-      '開発期間は3ヶ月を見込んでいます',
-      'チームは5名で構成される予定です',
-      '最終的な決定は来週の火曜日に行います',
-      'デモは10月18日に予定しています',
-      'B社の要望を反映して資料を修正します',
-      'コスト見積りはスタンダードプランで確定します',
+      "今日の会議では新しいプロジェクトについて話します",
+      "予算は500万円を予定しています",
+      "開発期間は3ヶ月を見込んでいます",
+      "チームは5名で構成される予定です",
+      "最終的な決定は来週の火曜日に行います",
+      "デモは10月18日に予定しています",
+      "B社の要望を反映して資料を修正します",
+      "コスト見積りはスタンダードプランで確定します",
     ];
 
     const randomText = testTexts[Math.floor(Math.random() * testTexts.length)];
@@ -105,7 +106,7 @@ const CtideDebugDashboardContent = () => {
       timestamp: Date.now(),
     };
 
-    console.log('[DEBUG] 📝 テスト発話追加:', newUtterance);
+    console.log("[DEBUG] 📝 テスト発話追加:", newUtterance);
     addUtterance(newUtterance);
   };
 
@@ -122,23 +123,27 @@ const CtideDebugDashboardContent = () => {
               </h1>
               <p className="text-purple-100 mt-2">
                 {sessionIdFromUrl
-                  ? 'セッション表示モード（リアルタイム同期）'
-                  : 'リアルタイム分析結果とパラメータ調整'}
+                  ? "セッション表示モード（リアルタイム同期）"
+                  : "リアルタイム分析結果とパラメータ調整"}
               </p>
               {user && (
                 <p className="text-xs text-purple-200 mt-1">
-                  ユーザー:{' '}
-                  <span className="font-semibold">{emailToUsername(user.email || '')}</span>
+                  ユーザー:{" "}
+                  <span className="font-semibold">
+                    {emailToUsername(user.email || "")}
+                  </span>
                 </p>
               )}
               {sessionId && (
                 <p className="text-xs text-purple-200 mt-1">
-                  セッションID: <span className="font-mono font-semibold">{sessionId}</span>
+                  セッションID:{" "}
+                  <span className="font-mono font-semibold">{sessionId}</span>
                 </p>
               )}
               {sessionInfo?.username && (
                 <p className="text-xs text-purple-200 mt-1">
-                  作成者: <span className="font-semibold">{sessionInfo.username}</span>
+                  作成者:{" "}
+                  <span className="font-semibold">{sessionInfo.username}</span>
                 </p>
               )}
             </div>
@@ -154,7 +159,11 @@ const CtideDebugDashboardContent = () => {
                         onClick={startListening}
                         className="px-4 py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors flex items-center gap-2"
                       >
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <svg
+                          className="w-5 h-5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
                           <title>開始</title>
                           <path
                             fillRule="evenodd"
@@ -170,7 +179,11 @@ const CtideDebugDashboardContent = () => {
                         onClick={stopListening}
                         className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                       >
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <svg
+                          className="w-5 h-5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
                           <title>停止</title>
                           <path
                             fillRule="evenodd"
@@ -213,15 +226,21 @@ const CtideDebugDashboardContent = () => {
           <div className="mt-4 flex items-center gap-6 text-sm text-purple-100">
             <div className="flex items-center gap-2">
               <span className="font-semibold">発話数:</span>
-              <span className="bg-white/20 px-2 py-1 rounded">{dialogue.length}</span>
+              <span className="bg-white/20 px-2 py-1 rounded">
+                {dialogue.length}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="font-semibold">重要発言:</span>
-              <span className="bg-white/20 px-2 py-1 rounded">{importantList.length}</span>
+              <span className="bg-white/20 px-2 py-1 rounded">
+                {importantList.length}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="font-semibold">アンカー:</span>
-              <span className="bg-white/20 px-2 py-1 rounded">{anchorCount}</span>
+              <span className="bg-white/20 px-2 py-1 rounded">
+                {anchorCount}
+              </span>
             </div>
             {isAnalyzing && (
               <div className="flex items-center gap-2 text-yellow-200">
@@ -255,13 +274,15 @@ const CtideDebugDashboardContent = () => {
           {/* 左カラム: パラメータ制御 */}
           <div className="lg:col-span-1 space-y-6">
             <DebugParameterControl
-              currentParams={ctideParams}
-              onParamsChange={params => {
-                console.log('[DEBUG] ⚙️ パラメータ変更:', params);
-                setCtideParams(params);
+              currentParams={params}
+              onParamsChange={(p) => {
+                setParams(p);
               }}
             />
-            <DebugAnchorMemory importantList={importantList} anchorCount={anchorCount} />
+            <DebugAnchorMemory
+              importantList={importantList}
+              anchorCount={anchorCount}
+            />
           </div>
 
           {/* 右カラム: スコア詳細 */}
@@ -274,7 +295,11 @@ const CtideDebugDashboardContent = () => {
       {/* リスニング状態インジケーター */}
       {isListening && (
         <div className="fixed bottom-4 left-4 bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-          <svg className="w-4 h-4 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+          <svg
+            className="w-4 h-4 animate-pulse"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
             <title>録音中</title>
             <circle cx="10" cy="10" r="8" />
           </svg>
@@ -285,16 +310,18 @@ const CtideDebugDashboardContent = () => {
   );
 };
 
-export const CtideDebugDashboard = () => {
+export const DebugDashboard = () => {
   return (
     <Suspense
       fallback={
         <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
-          <div className="text-slate-600 dark:text-slate-400">読み込み中...</div>
+          <div className="text-slate-600 dark:text-slate-400">
+            読み込み中...
+          </div>
         </div>
       }
     >
-      <CtideDebugDashboardContent />
+      <DebugDashboardContent />
     </Suspense>
   );
 };

@@ -1,6 +1,6 @@
 /**
- * CtideAssistant Component
- * CTIDE専用リアルタイム会話アシスタント - メインコンポーネント
+ * Assistant Component
+ * 専用リアルタイム会話アシスタント - メインコンポーネント
  */
 
 'use client';

@@ -1,6 +1,6 @@
 /**
  * ConversationStream Component
- * CTIDE専用 - リアルタイム会話表示（スコアベースハイライト）
+ * リアルタイム会話表示（スコアベースハイライト）
  */
 
 'use client';
@@ -43,7 +43,7 @@ export const ConversationStream = ({
             />
           </svg>
           <p className="text-lg font-medium mb-2">会話を開始してください</p>
-          <p className="text-sm">発話が追加されると、CTIDEがリアルタイムで重要度を分析します</p>
+          <p className="text-sm">発話が追加されると、Atlasがリアルタイムで重要度を分析します</p>
         </div>
       </div>
     );
@@ -164,7 +164,7 @@ export const ConversationStream = ({
                 {utterance.text}
               </p>
 
-              {/* CTIDE詳細（重要発言のみ） */}
+              {/* 詳細（重要発言のみ） */}
               {score?.isImportant && (
                 <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-600">
                   <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">

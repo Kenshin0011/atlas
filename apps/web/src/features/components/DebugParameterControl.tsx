@@ -1,6 +1,6 @@
 /**
  * DebugParameterControl Component
- * CTIDEパラメータのリアルタイム調整UI
+ * パラメータのリアルタイム調整UI
  */
 
 'use client';

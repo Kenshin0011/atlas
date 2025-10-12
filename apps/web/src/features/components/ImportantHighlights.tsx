@@ -1,6 +1,6 @@
 /**
  * ImportantHighlights Component
- * CTIDE専用 - 重要発言ハイライト一覧（サイドバー）
+ * 重要発言ハイライト一覧（サイドバー）
  */
 
 'use client';

@@ -1,5 +1,5 @@
 /**
- * CTIDE Sessions Management Page
+ * Sessions Management Page
  * セッション一覧・統計表示・エクスポート
  */
 

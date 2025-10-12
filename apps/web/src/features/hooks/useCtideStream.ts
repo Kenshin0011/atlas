@@ -1,6 +1,6 @@
 /**
  * useCtideStream Hook
- * CTIDE専用 - リアルタイム会話ストリーム＋重要発言検出
+ * リアルタイム会話ストリーム＋重要発言検出
  */
 
 'use client';

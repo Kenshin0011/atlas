@@ -1,6 +1,6 @@
 /**
  * DebugScoreDetails Component
- * CTIDE分析結果の詳細デバッグビュー
+ * 分析結果の詳細デバッグビュー
  */
 
 'use client';
