@@ -1,14 +1,19 @@
 /**
- * Core Types for ATLAS
- * Shared type definitions across the library
+ * ATLAS コア型定義
+ * ライブラリ全体で共有される型
  */
 
 /**
- * Core Utterance type (used in app layer with numeric IDs)
+ * 発話型（アプリケーション層用）
+ * 数値IDを使用する外部インターフェース
  */
 export type Utterance = {
-  id: number; // Numeric ID for core app usage
+  /** 発話ID（数値） */
+  id: number;
+  /** 発話テキスト */
   text: string;
-  timestamp: number; // ms epoch
+  /** タイムスタンプ（ミリ秒エポック） */
+  timestamp: number;
+  /** 発話者 */
   speaker: string;
 };

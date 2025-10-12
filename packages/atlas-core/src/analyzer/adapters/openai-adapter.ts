@@ -1,22 +1,20 @@
 /**
- * OpenAI Adapter for Conversation Analyzer
- * Uses text-embedding-3-small for embeddings
- * Approximates loss via cosine similarity in embedding space
+ * OpenAIアダプタ
+ * text-embedding-3-smallを使用した埋め込み
+ * 埋め込み空間でのコサイン類似度により損失を近似
  */
 
-import type { ModelAdapter } from '../..';
+import type { ModelAdapter, Utterance } from './types';
 
-// Internal Analyzer Utterance type (matches the one in index.ts)
-type Utterance = {
-  id: string;
-  text: string;
-  ts?: number;
-  speaker?: string;
-};
-
+/**
+ * OpenAIアダプタ設定
+ */
 export type OpenAIAdapterConfig = {
+  /** OpenAI APIキー */
   apiKey: string;
+  /** 埋め込みモデル名 */
   model?: string;
+  /** 埋め込み次元数 */
   embeddingDimension?: number;
 };
 
@@ -33,7 +31,7 @@ export class OpenAIAdapter implements ModelAdapter {
   }
 
   /**
-   * Get embeddings from OpenAI API with caching
+   * OpenAI APIから埋め込みを取得（キャッシュ付き）
    */
   async embed(text: string): Promise<number[]> {
     // Cache check
@@ -69,8 +67,8 @@ export class OpenAIAdapter implements ModelAdapter {
   }
 
   /**
-   * Approximate loss as 1 - cosine similarity
-   * Higher loss = current utterance is less predictable from history
+   * コサイン類似度から損失を近似
+   * 損失が高い = 履歴から現在発話を予測困難
    */
   async lossWithHistory(history: Utterance[], current: Utterance): Promise<number> {
     if (history.length === 0) {
@@ -92,8 +90,9 @@ export class OpenAIAdapter implements ModelAdapter {
   }
 
   /**
-   * Approximate masked loss by removing one utterance from history
-   * ΔLoss = L(Y|H\{u}) - L(Y|H) measures information contribution of u
+   * マスク損失を近似
+   * 特定の発話を除外した履歴から損失を計算
+   * ΔLoss = L(Y|H\{u}) - L(Y|H) で発話uの情報量を測定
    */
   async maskedLoss(history: Utterance[], current: Utterance, masked: Utterance): Promise<number> {
     const filteredHistory = history.filter(h => h.id !== masked.id);
@@ -115,7 +114,7 @@ export class OpenAIAdapter implements ModelAdapter {
   }
 
   /**
-   * Cosine similarity between two vectors
+   * 2つのベクトル間のコサイン類似度
    */
   private cosineSimilarity(a: number[], b: number[]): number {
     if (a.length !== b.length) {
@@ -143,14 +142,14 @@ export class OpenAIAdapter implements ModelAdapter {
   }
 
   /**
-   * Clear embedding cache (useful for memory management)
+   * キャッシュをクリア（メモリ管理用）
    */
   clearCache(): void {
     this.cache.clear();
   }
 
   /**
-   * Get cache size (for monitoring)
+   * キャッシュサイズを取得（監視用）
    */
   getCacheSize(): number {
     return this.cache.size;

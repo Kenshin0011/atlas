@@ -4,7 +4,7 @@
  */
 
 import type { Utterance } from '@atlas/core';
-import { AnchorMemory, analyzeWithAnchors, OpenAIAdapter, toAnalyzerUtterance } from '@atlas/core';
+import { AnchorMemory, analyzeWithAnchors, OpenAIAdapter } from '@atlas/core';
 import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
@@ -54,25 +54,15 @@ export async function POST(req: NextRequest) {
 
     const adapter = getAdapter();
 
-    // Convert Core Utterances (id: number -> id: string)
-    const historyConverted = history.map(toAnalyzerUtterance);
-    const currentConverted = toAnalyzerUtterance(current);
-
     // 分析実行
-    const result = await analyzeWithAnchors(
-      adapter,
-      historyConverted,
-      currentConverted,
-      anchorMemory,
-      {
-        k: options.k ?? 6,
-        alphaMix: options.alphaMix ?? 0.6,
-        halfLifeTurns: options.halfLifeTurns ?? 20,
-        nullSamples: options.nullSamples ?? 8,
-        fdrAlpha: options.fdrAlpha ?? 0.1,
-        mmrLambda: options.mmrLambda ?? 0.7,
-      }
-    );
+    const result = await analyzeWithAnchors(adapter, history, current, anchorMemory, {
+      k: options.k ?? 6,
+      alphaMix: options.alphaMix ?? 0.6,
+      halfLifeTurns: options.halfLifeTurns ?? 20,
+      nullSamples: options.nullSamples ?? 8,
+      fdrAlpha: options.fdrAlpha ?? 0.1,
+      mmrLambda: options.mmrLambda ?? 0.7,
+    });
 
     // 重要発言をアンカーメモリに追加
     for (const imp of result.important) {
@@ -80,7 +70,7 @@ export async function POST(req: NextRequest) {
         id: imp.id,
         text: imp.text,
         score: imp.score,
-        ts: imp.ts,
+        ts: imp.timestamp,
       });
     }
 

@@ -3,13 +3,11 @@
  * Attention Temporal Link Analysis System
  */
 
-// Algorithms
-// Conversation analyzer (has its own Utterance type with conversion helpers)
+// ==================== 会話分析 ====================
+// Analyzer（数値ID → 文字列ID変換が必要）
 export * from './analyzer';
 export * from './analyzer/adapters';
-// Formatting
+// ==================== UI用ユーティリティ ====================
 export * from './format/time';
-// Math utilities
-export * from './math/similarity';
-// Core Types
-export * from './types';
+// ==================== コア型定義 ====================
+export type { Utterance } from './types';

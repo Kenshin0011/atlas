@@ -6,7 +6,6 @@
 'use client';
 
 import type { Utterance } from '@atlas/core';
-import { toAnalyzerUtterance } from '@atlas/core';
 import { useCallback, useRef, useState } from 'react';
 
 export type Score = {
@@ -91,8 +90,8 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
 
       try {
         // 会話分析
-        const history = updatedDialogue.slice(0, -1).map(toAnalyzerUtterance);
-        const current = toAnalyzerUtterance(utterance);
+        const history = updatedDialogue.slice(0, -1);
+        const current = utterance;
 
         const response = await fetch('/api/analyze', {
           method: 'POST',
@@ -117,7 +116,7 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
 
         const data: {
           important: Array<{
-            id: string;
+            id: number;
             text: string;
             score: number;
             rank: number;
@@ -125,7 +124,7 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
             detail: Score['detail'];
           }>;
           scored: Array<{
-            id: string;
+            id: number;
             text: string;
             score: number;
             rank: number;
@@ -139,7 +138,7 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
         setScores(prev => {
           const next = new Map(prev);
           for (const item of data.scored) {
-            const id = Number.parseInt(item.id, 10);
+            const id = item.id;
             next.set(id, {
               utteranceId: id,
               score: item.score,
@@ -155,7 +154,7 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
         // 重要発言リスト更新
         if (data.important.length > 0) {
           const newImportant: ImportantUtterance[] = data.important.map(item => {
-            const id = Number.parseInt(item.id, 10);
+            const id = item.id;
             const utt = updatedDialogue.find(u => u.id === id);
             if (!utt) throw new Error(`Utterance ${id} not found`);
 
