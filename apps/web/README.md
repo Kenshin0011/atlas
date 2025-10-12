@@ -59,10 +59,10 @@ Migrations are located in `supabase/migrations/`. Apply them to your Supabase pr
 ## Key Routes
 
 - `/login` - Username authentication
-- `/ctide` - Booth list (protected)
-- `/ctide/booth/[id]` - Conversation page (protected)
-- `/ctide/sessions` - Admin: Session management (admin only)
-- `/ctide/debug` - Admin: Debug viewer (admin only)
+- `/` - Booth list (protected)
+- `/booth/[id]` - Conversation page (protected)
+- `/sessions` - Admin: Session management (admin only)
+- `/debug` - Admin: Debug viewer (admin only)
 
 ## Features
 

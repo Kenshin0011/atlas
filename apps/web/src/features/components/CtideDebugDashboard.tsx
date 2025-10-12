@@ -9,8 +9,8 @@
 import type { Utterance } from '@atlas/core';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useMemo, useState } from 'react';
-import { useSpeechRecognition } from '@/features/conversation-assistant/hooks/useSpeechRecognition';
 import { useAuth } from '@/hooks/useAuth';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { emailToUsername } from '@/lib/supabase/username';
 import { useCtideStreamWithSupabase } from '../hooks/useCtideStreamWithSupabase';
 import { DebugAnchorMemory } from './DebugAnchorMemory';

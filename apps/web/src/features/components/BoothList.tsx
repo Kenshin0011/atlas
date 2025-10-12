@@ -63,7 +63,7 @@ export const BoothList = () => {
       const sessionId = await createSession(boothInfo);
       // ブースリストを更新してから遷移
       await fetchBooths();
-      router.push(`/ctide/booth/${sessionId}`);
+      router.push(`/booth/${sessionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ブース作成に失敗しました');
       setIsCreating(false);
@@ -96,7 +96,7 @@ export const BoothList = () => {
                     管理者:
                   </span>
                   <Link
-                    href="/ctide/sessions"
+                    href="/sessions"
                     className="text-xs text-orange-600 dark:text-orange-400 underline hover:text-orange-700"
                   >
                     セッション管理
@@ -186,7 +186,7 @@ export const BoothList = () => {
               {existingBooths.map(booth => (
                 <Link
                   key={booth.id}
-                  href={`/ctide/booth/${booth.id}`}
+                  href={`/booth/${booth.id}`}
                   className="block p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                 >
                   <div className="flex items-start justify-between">

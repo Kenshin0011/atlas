@@ -1,7 +1,7 @@
 /**
  * useCtideStreamWithSupabase Hook
  * Supabaseと連携したCTIDEストリーム管理
- * /ctide で会話 → /ctide/debug?session=xxx でリアルタイムデバッグ
+ * /ctide で会話 → /debug?session=xxx でリアルタイムデバッグ
  */
 
 'use client';

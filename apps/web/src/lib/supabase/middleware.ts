@@ -48,7 +48,7 @@ export const updateSession = async (request: NextRequest) => {
   } = await supabase.auth.getUser();
 
   // 認証が必要なルートへのアクセス制御
-  const protectedPaths = ['/ctide'];
+  const protectedPaths = ['/'];
   const isProtectedPath = protectedPaths.some(path => request.nextUrl.pathname.startsWith(path));
 
   if (!user && isProtectedPath && !request.nextUrl.pathname.startsWith('/login')) {
@@ -59,7 +59,7 @@ export const updateSession = async (request: NextRequest) => {
   }
 
   // 管理者限定ルートへのアクセス制御
-  const adminPaths = ['/ctide/sessions', '/ctide/debug'];
+  const adminPaths = ['/sessions', '/debug'];
   const isAdminPath = adminPaths.some(path => request.nextUrl.pathname.startsWith(path));
 
   if (user && isAdminPath) {
@@ -67,7 +67,7 @@ export const updateSession = async (request: NextRequest) => {
     if (!isAdmin(username)) {
       // 管理者でない場合はホームにリダイレクト
       const url = request.nextUrl.clone();
-      url.pathname = '/ctide';
+      url.pathname = '/';
       return NextResponse.redirect(url);
     }
   }

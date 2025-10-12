@@ -8,9 +8,9 @@
 import type { Utterance } from '@atlas/core';
 import Link from 'next/link';
 import { useCallback, useMemo } from 'react';
-import { useSpeechRecognition } from '@/features/conversation-assistant/hooks/useSpeechRecognition';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useAuth } from '@/hooks/useAuth';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { emailToUsername } from '@/lib/supabase/username';
 import { useCtideStreamWithSupabase } from '../hooks/useCtideStreamWithSupabase';
 import { ConversationStream } from './ConversationStream';
@@ -106,7 +106,7 @@ export const CtideAssistant = ({ boothId }: CtideAssistantProps) => {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <Link
-                  href="/ctide"
+                  href="/"
                   className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
                 >
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -147,14 +147,14 @@ export const CtideAssistant = ({ boothId }: CtideAssistantProps) => {
               {isAdminUser && (
                 <div className="flex items-center gap-3 mt-2">
                   <Link
-                    href="/ctide/sessions"
+                    href="/sessions"
                     className="text-xs text-orange-600 dark:text-orange-400 underline hover:text-orange-700"
                   >
                     セッション管理
                   </Link>
                   {sessionId && (
                     <a
-                      href={`/ctide/debug?session=${sessionId}`}
+                      href={`/debug?session=${sessionId}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-blue-600 dark:text-blue-400 underline hover:text-blue-700"

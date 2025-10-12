@@ -133,16 +133,19 @@ pnpm build
 ## 👤 User Flow
 
 ### 1. **Login** (`/login`)
+
 - Enter username (3+ characters, alphanumeric, `_`, `-`)
 - Create account or sign in
 - Redirected to booth list
 
-### 2. **Create Booth** (`/ctide`)
+### 2. **Create Booth** (`/`)
+
 - Enter booth name (e.g., "Experiment A - Condition 1")
 - Click "Create Booth"
 - Automatically creates new session
 
-### 3. **Conversation** (`/ctide/booth/[id]`)
+### 3. **Conversation** (`/booth/[id]`)
+
 - Click "Start" to begin speech recognition
 - System automatically detects:
   - Important utterances (highlighted in green)
@@ -151,7 +154,8 @@ pnpm build
 - Click "Stop" to pause recording
 - Click "Clear" to reset conversation
 
-### 4. **Admin Dashboard** (`/ctide/sessions`) - Admin Only
+### 4. **Admin Dashboard** (`/sessions`) - Admin Only
+
 - View all sessions with:
   - Booth name
   - Username
@@ -165,16 +169,16 @@ pnpm build
 
 ## 📊 Technology Stack
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | Next.js 15 + React 19 + Tailwind CSS |
-| **Authentication** | Supabase Auth (cookie-based SSR) |
-| **Database** | PostgreSQL (via Supabase) |
-| **Speech Recognition** | Web Speech API (Browser) |
-| **Embeddings** | OpenAI text-embedding-3-small |
-| **Hosting** | Vercel (Serverless) |
-| **Build System** | Turborepo + pnpm workspaces |
-| **Code Quality** | Biome (linter/formatter) |
+| Layer                  | Technology                           |
+| ---------------------- | ------------------------------------ |
+| **Frontend**           | Next.js 15 + React 19 + Tailwind CSS |
+| **Authentication**     | Supabase Auth (cookie-based SSR)     |
+| **Database**           | PostgreSQL (via Supabase)            |
+| **Speech Recognition** | Web Speech API (Browser)             |
+| **Embeddings**         | OpenAI text-embedding-3-small        |
+| **Hosting**            | Vercel (Serverless)                  |
+| **Build System**       | Turborepo + pnpm workspaces          |
+| **Code Quality**       | Biome (linter/formatter)             |
 
 ### Database Schema
 
@@ -195,18 +199,21 @@ pnpm build
 ATLAS analyzes conversation dependencies across three temporal scales:
 
 ### 1. **Local Dependencies (Short-term)**
+
 - Context: Last 1-3 utterances
 - Method: Attention weights + Embedding similarity
 - Decay: Exponential (λ = 0.5)
 - Use case: Direct references, pronouns
 
 ### 2. **Topical Dependencies (Mid-term)**
+
 - Context: Same topic segment (5-20 utterances)
 - Method: Entity linking + Co-reference resolution
 - Decay: Moderate (λ = 0.2)
 - Use case: Continuous discussion, shared entities
 
 ### 3. **Global Dependencies (Long-term)**
+
 - Context: Full conversation history
 - Method: Temporal reference detection + LLM verification
 - Decay: Minimal (λ = 0.05)
@@ -227,14 +234,14 @@ where each δ includes temporal decay:
 
 ## 💰 Cost Estimation
 
-| Service | Monthly Cost |
-|---------|--------------|
-| Vercel Hobby | $0 (free tier) |
-| Supabase Free Tier | $0 (500MB DB, 50k auth users) |
-| Web Speech API | $0 (browser built-in) |
-| OpenAI Embeddings | ~$2 (100k utterances) |
-| OpenAI GPT-4 (optional) | ~$3 (100 calls) |
-| **Total** | **~$0-5/month** |
+| Service                 | Monthly Cost                  |
+| ----------------------- | ----------------------------- |
+| Vercel Hobby            | $0 (free tier)                |
+| Supabase Free Tier      | $0 (500MB DB, 50k auth users) |
+| Web Speech API          | $0 (browser built-in)         |
+| OpenAI Embeddings       | ~$2 (100k utterances)         |
+| OpenAI GPT-4 (optional) | ~$3 (100 calls)               |
+| **Total**               | **~$0-5/month**               |
 
 ---
 
@@ -244,13 +251,13 @@ Edit `packages/atlas-core/src/types.ts` to customize detection parameters:
 
 ```typescript
 export const DEFAULT_CONFIG: DetectionConfig = {
-  scain_threshold: 0.5,      // Dependency detection threshold
-  w_local: 0.5,              // Local dependency weight
-  w_topic: 0.3,              // Topical dependency weight
-  w_global: 0.2,             // Global dependency weight
-  lambda_local: 0.5,         // Local temporal decay rate
-  lambda_topic: 0.2,         // Topical temporal decay rate
-  lambda_global: 0.05,       // Global temporal decay rate
+  scain_threshold: 0.5, // Dependency detection threshold
+  w_local: 0.5, // Local dependency weight
+  w_topic: 0.3, // Topical dependency weight
+  w_global: 0.2, // Global dependency weight
+  lambda_local: 0.5, // Local temporal decay rate
+  lambda_topic: 0.2, // Topical temporal decay rate
+  lambda_global: 0.05, // Global temporal decay rate
 };
 ```
 

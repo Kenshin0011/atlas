@@ -3,7 +3,7 @@
  * 特定のブースでの会話画面
  */
 
-import { CtideAssistant } from '@/features/ctide-assistant/components/CtideAssistant';
+import { CtideAssistant } from '@/features/components/CtideAssistant';
 
 type PageProps = {
   params: { booth_id: string };

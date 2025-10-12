@@ -4,7 +4,7 @@
  */
 
 import type { Utterance } from '@atlas/core';
-import type { CtideScore } from '@/features/ctide-assistant/hooks/useCtideStream';
+import type { CtideScore } from '@/features/hooks/useCtideStream';
 import { supabase } from './client';
 import { emailToUsername } from './username';
 

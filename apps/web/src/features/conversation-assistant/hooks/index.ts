@@ -1,1 +1,0 @@
-export { useSpeechRecognition } from './useSpeechRecognition';
