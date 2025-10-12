@@ -27,10 +27,13 @@ export const scoreUtterances = async (
   baseLoss: number,
   options: Required<AnalyzerOptions>
 ): Promise<ScoreDetail[]> => {
-  const details: ScoreDetail[] = [];
+  // 並列処理: 全候補のmaskedLossを同時に計算
+  const maskedLosses = await Promise.all(
+    candidates.map(u => adapter.maskedLoss(history, current, u))
+  );
 
-  for (const u of candidates) {
-    const masked = await adapter.maskedLoss(history, current, u);
+  const details: ScoreDetail[] = candidates.map((u, i) => {
+    const masked = maskedLosses[i];
     const delta = masked - baseLoss; // 劣化量
     const surpr = 0; // 実装する場合はここで差分を入れる
     const ageTurns = history.length - history.indexOf(u); // 新しいほど小
@@ -38,7 +41,7 @@ export const scoreUtterances = async (
     const raw = options.alphaMix * delta + (1 - options.alphaMix) * surpr;
     const final = raw * ageW;
 
-    details.push({
+    return {
       baseLoss,
       maskedLoss: masked,
       deltaLoss: delta,
@@ -46,8 +49,8 @@ export const scoreUtterances = async (
       ageWeight: ageW,
       rawScore: raw,
       finalScore: final,
-    });
-  }
+    };
+  });
 
   return details;
 };

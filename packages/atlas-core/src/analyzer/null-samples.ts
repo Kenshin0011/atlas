@@ -23,19 +23,20 @@ export const generateNullSamples = async (
   current: Utterance,
   options: Required<AnalyzerOptions>
 ): Promise<number[]> => {
-  const nullScores: number[] = [];
-
-  for (let s = 0; s < options.nullSamples; s++) {
+  // 並列処理: 各サンプルを同時に生成
+  const samplePromises = Array.from({ length: options.nullSamples }, async () => {
     const shuffled = shuffle(history);
-    const baseNull = await adapter.lossWithHistory(shuffled, current);
-    // 直近k相当を適当に抜粋
     const sample = shuffled.slice(-Math.min(options.k, shuffled.length));
 
-    for (const u of sample) {
-      const ml = await adapter.maskedLoss(shuffled, current, u);
-      nullScores.push(ml - baseNull);
-    }
-  }
+    // baseLossと全maskedLossを並列計算
+    const [baseNull, ...maskedLosses] = await Promise.all([
+      adapter.lossWithHistory(shuffled, current),
+      ...sample.map(u => adapter.maskedLoss(shuffled, current, u)),
+    ]);
 
-  return nullScores;
+    return maskedLosses.map(ml => ml - baseNull);
+  });
+
+  const allSamples = await Promise.all(samplePromises);
+  return allSamples.flat();
 };

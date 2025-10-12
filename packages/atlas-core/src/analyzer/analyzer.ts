@@ -46,11 +46,11 @@ export const analyze = async (
   // 候補集合：直近k文
   const candidates = [...recent];
 
-  // 各候補のスコア計算
-  const details = await scoreUtterances(adapter, history, current, candidates, baseLoss, o);
-
-  // 帰無サンプル生成
-  const nullScores = await generateNullSamples(adapter, history, current, o);
+  // 並列処理: スコア計算と帰無サンプル生成を同時実行
+  const [details, nullScores] = await Promise.all([
+    scoreUtterances(adapter, history, current, candidates, baseLoss, o),
+    generateNullSamples(adapter, history, current, o),
+  ]);
 
   // 正規化 → p値化 → BH-FDR
   const finals = details.map(d => d.finalScore);
