@@ -30,7 +30,7 @@ ATLASは、会話中の重要な発話を統計的に検出するリアルタイ
 ```
 atlas/
 ├── apps/
-│   └── web/                              # Next.js 15 アプリケーション (@atlas/web)
+│   └── web/                             # Next.js 15 アプリケーション (@atlas/web)
 │       ├── src/
 │       │   ├── app/                     # App Router
 │       │   │   ├── api/
@@ -49,9 +49,9 @@ atlas/
 │       └── package.json
 │
 ├── packages/
-│   └── atlas-core/                       # 共有コアライブラリ (@atlas/core)
+│   └── atlas-core/                      # 共有コアライブラリ (@atlas/core)
 │       └── src/
-│           ├── analyzer/                 # 会話分析モジュール (18ファイル)
+│           ├── analyzer/                # 会話分析モジュール (18ファイル)
 │           │   ├── adapters/            # モデルアダプタ (OpenAI, Fallback)
 │           │   ├── statistics/          # 統計関数 (FDR, robust, time-decay)
 │           │   ├── utils/               # 汎用ユーティリティ (math, array)
@@ -68,7 +68,7 @@ atlas/
 │           └── index.ts                 # 公開API
 │
 └── supabase/
-    └── migrations/                       # データベーススキーマ
+    └── migrations/                      # データベーススキーマ
 ```
 
 ---
@@ -91,14 +91,11 @@ cd atlas
 # Node.jsバージョンを設定（nvmを使用する場合）
 nvm use
 
-# または（asdfを使用する場合）
-asdf install
-
 # Install dependencies
 pnpm install
 
 # Set up environment variables
-cp .env.example apps/web/.env.local
+cp apps/web/.env.example apps/web/.env.local
 # Edit apps/web/.env.local and add:
 # - OPENAI_API_KEY
 # - NEXT_PUBLIC_SUPABASE_URL
