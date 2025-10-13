@@ -15,6 +15,7 @@
     "analyze": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run analyze",
     "evaluate": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run evaluate",
     "explain": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run explain",
+    "visualize": "pnpm --filter @atlas/experiments run visualize",
     "convert-batch": "pnpm --filter @atlas/experiments run convert-batch",
     "convert": "pnpm --filter @atlas/experiments run convert"
   },
