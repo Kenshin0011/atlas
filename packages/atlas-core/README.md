@@ -130,7 +130,7 @@ const result = await analyzeWithAnchors(
   history,
   current,
   anchorMemory,
-  { k: 3, fdrAlpha: 0.1 }
+  { k: 15, fdrAlpha: 0.1 }
 );
 
 // 重要発話をアンカーメモリに追加
@@ -378,8 +378,8 @@ score_final = (alphaMix × Δ + (1-alphaMix) × surprisal) × w(age)
 ## 📊 パフォーマンス
 
 **計算量**: O(k × n) per utterance
-- `k`: 評価対象の発話数（default: 3）
-- `n`: nullSamples数（default: 8）
+- `k`: 評価対象の発話数（default: 15）
+- `n`: nullSamples数（default: 20）
 
 **典型的なレイテンシ**（OpenAIAdapter使用時）:
 - 初回: ~500ms（埋め込みAPI呼び出し）

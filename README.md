@@ -257,10 +257,10 @@ score_boosted = score_raw + 0.2 × similarity(current, anchors)
 
 | パラメータ | デフォルト | 説明 |
 |-----------|----------|------|
-| `k` | 3 | 直近k文を厳密評価 |
+| `k` | 15 | 直近k文を厳密評価 |
 | `alphaMix` | 0.6 | 損失重視度 (0..1) |
 | `halfLifeTurns` | 20 | 半減期（ターン数） |
-| `nullSamples` | 8 | 帰無サンプル数 |
+| `nullSamples` | 20 | 帰無サンプル数 |
 | `fdrAlpha` | 0.1 | FDR閾値 |
 | `mmrLambda` | 0.7 | MMR重要度重視度 |
 
@@ -285,10 +285,10 @@ score_boosted = score_raw + 0.2 × similarity(current, anchors)
 
 ```typescript
 export const defaultOptions: Required<AnalyzerOptions> = {
-  k: 3,                   // 直近k文の厳密評価
+  k: 15,                  // 直近k文の厳密評価
   alphaMix: 0.6,          // 損失重視度 (0..1)
   halfLifeTurns: 20,      // 半減期（ターン数）
-  nullSamples: 8,         // 帰無サンプル数
+  nullSamples: 20,         // 帰無サンプル数
   fdrAlpha: 0.1,          // FDR閾値
   minTokensForSingle: 5,  // 短文統合閾値
   mmrLambda: 0.7,         // MMR重要度重視度
@@ -310,7 +310,7 @@ const adapter = new OpenAIAdapter({ apiKey: 'sk-...' });
 
 // 基本分析
 const result = await analyze(adapter, history, current, {
-  k: 6,
+  k: 15,
   fdrAlpha: 0.1,
 });
 
