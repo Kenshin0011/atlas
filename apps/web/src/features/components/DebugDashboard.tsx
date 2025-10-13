@@ -14,6 +14,7 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { emailToUsername } from '@/lib/supabase/username';
 import { useStreamWithSupabase } from '../hooks/useStreamWithSupabase';
 import { DebugAnchorMemory } from './DebugAnchorMemory';
+import { DebugConversationView } from './DebugConversationView';
 import { DebugParameterControl } from './DebugParameterControl';
 import { DebugScoreDetails } from './DebugScoreDetails';
 
@@ -46,7 +47,6 @@ const DebugDashboardContent = () => {
     scores,
     importantList,
     addUtterance,
-    clear,
     isAnalyzing,
     anchorCount,
   } = useStreamWithSupabase({
@@ -147,62 +147,50 @@ const DebugDashboardContent = () => {
 
             {/* コントロール（読み取り専用モードでは無効化） */}
             <div className="flex items-center gap-3">
-              {!sessionIdFromUrl && (
-                <>
-                  {isSupported ? (
-                    !isListening ? (
-                      <button
-                        type="button"
-                        onClick={startListening}
-                        className="px-4 py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors flex items-center gap-2"
-                      >
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <title>開始</title>
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        開始
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={stopListening}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                      >
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <title>停止</title>
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        停止
-                      </button>
-                    )
+              {!sessionIdFromUrl &&
+                (isSupported ? (
+                  !isListening ? (
+                    <button
+                      type="button"
+                      onClick={startListening}
+                      className="px-4 py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <title>開始</title>
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      開始
+                    </button>
                   ) : (
                     <button
                       type="button"
-                      onClick={handleManualAdd}
-                      className="px-4 py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors"
+                      onClick={stopListening}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                     >
-                      テスト追加
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <title>停止</title>
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      停止
                     </button>
-                  )}
-
+                  )
+                ) : (
                   <button
                     type="button"
-                    onClick={clear}
-                    className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors"
-                    disabled={dialogue.length === 0}
+                    onClick={handleManualAdd}
+                    className="px-4 py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors"
                   >
-                    クリア
+                    テスト追加
                   </button>
-                </>
-              )}
+                ))}
               {sessionIdFromUrl && (
                 <div className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm">
                   読み取り専用モード（リアルタイム同期中）
@@ -263,11 +251,12 @@ const DebugDashboardContent = () => {
               }}
             />
             <DebugAnchorMemory importantList={importantList} anchorCount={anchorCount} />
+            <DebugScoreDetails dialogue={dialogue} scores={scores} />
           </div>
 
-          {/* 右カラム: スコア詳細 */}
+          {/* 右カラム: 会話履歴（スコア付き） */}
           <div className="lg:col-span-2">
-            <DebugScoreDetails dialogue={dialogue} scores={scores} />
+            <DebugConversationView dialogue={dialogue} scores={scores} />
           </div>
         </div>
       </main>

@@ -34,8 +34,6 @@ export type UseStreamWithSupabaseReturn = {
   importantList: ImportantUtterance[];
   // 発話を追加
   addUtterance: (utterance: Utterance) => Promise<void>;
-  // クリア
-  clear: () => void;
   // 分析中フラグ
   isAnalyzing: boolean;
   // エラー
@@ -264,6 +262,7 @@ export const useStreamWithSupabase = (
         } = await response.json();
 
         // スコアマップ更新 & Supabaseに保存
+        console.log(`[useStreamWithSupabase] スコア保存開始: ${data.scored.length}件`);
         const scorePromises: Promise<void>[] = [];
         setScores(prev => {
           const next = new Map(prev);
@@ -280,6 +279,9 @@ export const useStreamWithSupabase = (
             next.set(id, score);
 
             // Supabaseに保存
+            console.log(
+              `[useStreamWithSupabase] スコア保存: ID=${id}, score=${score.score}, p=${score.pValue}`
+            );
             scorePromises.push(saveScore(sessionId, id, score));
           }
           return next;
@@ -332,7 +334,13 @@ export const useStreamWithSupabase = (
         }
 
         // 全てのスコア保存を待つ
-        await Promise.all(scorePromises);
+        try {
+          await Promise.all(scorePromises);
+          console.log(`[useStreamWithSupabase] スコア保存完了: ${scorePromises.length}件`);
+        } catch (saveError) {
+          console.error('[useStreamWithSupabase] スコア保存エラー:', saveError);
+          // スコア保存エラーは致命的ではないので、処理は継続
+        }
 
         setAnchorCount(data.anchorCount);
       } catch (err) {
@@ -346,15 +354,6 @@ export const useStreamWithSupabase = (
     [dialogue, sessionId, analysisOptions]
   );
 
-  const clear = useCallback(() => {
-    setDialogue([]);
-    setScores(new Map());
-    setImportantList([]);
-    setError(null);
-    setAnchorCount(0);
-    // Note: セッションはクリアしない（URLで共有可能にするため）
-  }, []);
-
   return {
     sessionId,
     sessionInfo,
@@ -362,7 +361,6 @@ export const useStreamWithSupabase = (
     scores,
     importantList,
     addUtterance,
-    clear,
     isAnalyzing,
     error,
     anchorCount,

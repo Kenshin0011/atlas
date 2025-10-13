@@ -3,6 +3,7 @@ export { ConversationLayout } from './ConversationLayout';
 export { ConversationStream } from './ConversationStream';
 export { ConversationStreamWithDependencies } from './ConversationStreamWithDependencies';
 export { DebugAnchorMemory } from './DebugAnchorMemory';
+export { DebugConversationView } from './DebugConversationView';
 export { DebugDashboard } from './DebugDashboard';
 export { DebugParameterControl } from './DebugParameterControl';
 export { DebugScoreDetails } from './DebugScoreDetails';

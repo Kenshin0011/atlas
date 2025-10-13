@@ -95,7 +95,14 @@ export const saveScore = async (
     score: score as never,
   });
 
-  if (error) throw error;
+  if (error) {
+    console.error('[saveScore] エラー:', {
+      sessionId,
+      utteranceId,
+      error,
+    });
+    throw error;
+  }
 };
 
 /**
