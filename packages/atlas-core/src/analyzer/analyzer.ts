@@ -8,7 +8,7 @@ import type { ModelAdapter } from './adapters/types';
 import { generateNullSamples } from './null-samples';
 import { scoreUtterances } from './scoring/scorer';
 import type { ScoredUtterance } from './scoring/types';
-import { benjaminiHochberg, ecdf } from './statistics/fdr';
+import { ecdf } from './statistics/fdr';
 import { robustZ } from './statistics/robust';
 import type { AnalyzerOptions } from './types';
 import { defaultOptions } from './types';
@@ -76,15 +76,8 @@ export const analyze = async (
     scored[i].rank = i + 1;
   }
 
-  // BH-FDRで有意なものを抽出
-  const idx = benjaminiHochberg(pvals, o.fdrAlpha);
-  const important = idx
-    .sort((a, b) => details[b].finalScore - details[a].finalScore)
-    .map(i => {
-      const found = scored.find(s => s.id === candidates[i].id);
-      if (!found) throw new Error(`Scored utterance not found for candidate ${i}`);
-      return found;
-    });
+  // 単純なp値による閾値フィルタリング（BH-FDRなし）
+  const important = scored.filter(s => s.p !== undefined && s.p < o.fdrAlpha);
 
   return { important, scored, nullScores };
 };

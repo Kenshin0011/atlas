@@ -15,7 +15,8 @@
     "analyze": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run analyze",
     "evaluate": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run evaluate",
     "explain": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run explain",
-    "convert-batch": "pnpm --filter @atlas/experiments run convert-batch"
+    "convert-batch": "pnpm --filter @atlas/experiments run convert-batch",
+    "convert": "pnpm --filter @atlas/experiments run convert"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.5",

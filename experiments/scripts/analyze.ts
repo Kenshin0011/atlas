@@ -82,24 +82,48 @@ type ExperimentResult = {
 };
 
 /**
+ * パスをカレントディレクトリから解決
+ * (experiments/から実行される)
+ */
+const resolvePath = (inputPath: string): string => {
+  // 絶対パスの場合はそのまま返す
+  if (path.isAbsolute(inputPath)) {
+    return inputPath;
+  }
+
+  // "experiments/"で始まる場合は、それを除去してから解決
+  // (カレントディレクトリがすでにexperiments/なため)
+  let relativePath = inputPath;
+  if (relativePath.startsWith('experiments/')) {
+    relativePath = relativePath.slice('experiments/'.length);
+  }
+
+  // 相対パスの場合は、カレントディレクトリ(experiments/)を基準に解決
+  return path.resolve(process.cwd(), relativePath);
+};
+
+/**
  * メイン処理
  */
 async function main() {
   const args = process.argv.slice(2);
   if (args.length < 1) {
     console.error('使い方: tsx analyze.ts <dataset.json> [output_dir]');
-    console.error('例: tsx analyze.ts ../datasets/sample.json ../results/sample');
+    console.error('例: tsx analyze.ts datasets/sample.json results/sample');
     process.exit(1);
   }
 
-  const datasetPath = path.resolve(args[0]);
+  const datasetPath = resolvePath(args[0]);
+
+  // デフォルト出力ディレクトリ: YYYY-MM-DD_HHMMSS_datasetname 形式
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, ''); // HHMMSS
+  const defaultDirName = `${dateStr}_${timeStr}_${path.basename(datasetPath, '.json')}`;
+
   const outputDir = args[1]
-    ? path.resolve(args[1])
-    : path.resolve(
-        __dirname,
-        '../results',
-        `${new Date().toISOString().split('T')[0]}_${path.basename(datasetPath, '.json')}`
-      );
+    ? resolvePath(args[1])
+    : path.resolve(__dirname, '../results', defaultDirName);
 
   console.log('📂 データセット:', datasetPath);
   console.log('📁 出力先:', outputDir);

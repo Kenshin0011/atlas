@@ -73,6 +73,27 @@ type Dataset = {
 };
 
 /**
+ * パスをカレントディレクトリから解決
+ * (experiments/から実行される)
+ */
+const resolvePath = (inputPath: string): string => {
+  // 絶対パスの場合はそのまま返す
+  if (path.isAbsolute(inputPath)) {
+    return inputPath;
+  }
+
+  // "experiments/"で始まる場合は、それを除去してから解決
+  // (カレントディレクトリがすでにexperiments/なため)
+  let relativePath = inputPath;
+  if (relativePath.startsWith('experiments/')) {
+    relativePath = relativePath.slice('experiments/'.length);
+  }
+
+  // 相対パスの場合は、カレントディレクトリ(experiments/)を基準に解決
+  return path.resolve(process.cwd(), relativePath);
+};
+
+/**
  * メイン処理
  */
 const main = async () => {
@@ -80,17 +101,17 @@ const main = async () => {
   if (args.length < 2) {
     console.error('使い方: tsx explain-importance.ts <analysis.json> <dataset.json> [output.txt]');
     console.error(
-      '例: tsx explain-importance.ts ../results/2025-10-12_conversations_10/analysis.json ../datasets/conversations_10.json'
+      '例: tsx explain-importance.ts results/2025-10-12_conversations_10/analysis.json datasets/conversations_10.json'
     );
     process.exit(1);
   }
 
-  const analysisPath = path.resolve(args[0]);
-  const datasetPath = path.resolve(args[1]);
+  const analysisPath = resolvePath(args[0]);
+  const datasetPath = resolvePath(args[1]);
 
   // 出力ファイルパスを決定
   const outputPath = args[2]
-    ? path.resolve(args[2])
+    ? resolvePath(args[2])
     : path.join(path.dirname(analysisPath), 'explanation.txt');
 
   console.log('📂 分析結果:', analysisPath);

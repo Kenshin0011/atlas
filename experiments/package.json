@@ -7,7 +7,8 @@
     "analyze": "tsx scripts/analyze.ts",
     "evaluate": "tsx scripts/evaluate.ts",
     "explain": "tsx scripts/explain-importance.ts",
-    "convert-batch": "tsx scripts/convert-batch-txt-to-json.ts"
+    "convert-batch": "tsx scripts/convert-batch-txt-to-json.ts",
+    "convert": "tsx scripts/convert-single-txt.ts"
   },
   "dependencies": {
     "@atlas/core": "workspace:*"
