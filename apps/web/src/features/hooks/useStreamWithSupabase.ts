@@ -125,13 +125,31 @@ export const useStreamWithSupabase = (
     initSession();
   }, [providedSessionId]);
 
-  // リアルタイム購読（デバッグモード用）
+  // リアルタイム購読
   useEffect(() => {
-    if (!sessionId || providedSessionId === sessionId) return; // 自分のセッションは購読しない
+    if (!sessionId) return;
 
-    const utteranceChannel = subscribeToUtterances(sessionId, utterance => {
-      setDialogue(prev => [...prev, utterance]);
-    });
+    // DELETEイベントのハンドラ（履歴リセット検出）
+    const handleDelete = () => {
+      setDialogue([]);
+      setScores(new Map());
+      setImportantList([]);
+      setAnchorCount(0);
+    };
+
+    const utteranceChannel = subscribeToUtterances(
+      sessionId,
+      utterance => {
+        // 重複チェック（既に存在するIDは追加しない）
+        setDialogue(prev => {
+          if (prev.some(u => u.id === utterance.id)) {
+            return prev;
+          }
+          return [...prev, utterance];
+        });
+      },
+      handleDelete
+    );
 
     const scoreChannel = subscribeToScores(sessionId, (utteranceId, score) => {
       setScores(prev => new Map(prev).set(utteranceId, score));
@@ -140,14 +158,20 @@ export const useStreamWithSupabase = (
         setDialogue(currentDialogue => {
           const utt = currentDialogue.find(u => u.id === utteranceId);
           if (utt) {
-            setImportantList(prev => [
-              ...prev,
-              {
-                utterance: utt,
-                score,
-                timestamp: Date.now(),
-              },
-            ]);
+            setImportantList(prev => {
+              // 重複チェック
+              if (prev.some(item => item.utterance.id === utt.id)) {
+                return prev;
+              }
+              return [
+                ...prev,
+                {
+                  utterance: utt,
+                  score,
+                  timestamp: Date.now(),
+                },
+              ];
+            });
           }
           return currentDialogue;
         });
@@ -158,12 +182,18 @@ export const useStreamWithSupabase = (
       utteranceChannel.unsubscribe();
       scoreChannel.unsubscribe();
     };
-  }, [sessionId, providedSessionId]);
+  }, [sessionId]);
 
   const addUtterance = useCallback(
     async (utterance: Utterance) => {
       if (!sessionId) {
         setError('Session not initialized');
+        return;
+      }
+
+      // 空の発話は無視
+      if (!utterance.text || utterance.text.trim() === '') {
+        console.warn('Empty utterance ignored:', utterance);
         return;
       }
 

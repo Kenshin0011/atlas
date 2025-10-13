@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { emailToUsername } from '@/lib/supabase/username';
 import { useStreamWithSupabase } from '../hooks/useStreamWithSupabase';
-import { ConversationStream } from './ConversationStream';
+import { ConversationLayout } from './ConversationLayout';
 import { ImportantHighlights } from './ImportantHighlights';
 
 type AssistantProps = {
@@ -51,16 +51,19 @@ export const Assistant = ({ boothId }: AssistantProps) => {
   // 音声認識コールバック
   const handleTranscript = useCallback(
     (transcript: string, isFinal: boolean) => {
-      if (isFinal && speakerName) {
-        const newUtterance: Utterance = {
-          id: dialogue.length,
-          speaker: speakerName,
-          text: transcript,
-          timestamp: Date.now(),
-        };
-
-        addUtterance(newUtterance);
+      // 空の発話は無視
+      if (!isFinal || !speakerName || !transcript.trim()) {
+        return;
       }
+
+      const newUtterance: Utterance = {
+        id: dialogue.length,
+        speaker: speakerName,
+        text: transcript.trim(),
+        timestamp: Date.now(),
+      };
+
+      addUtterance(newUtterance);
     },
     [dialogue.length, speakerName, addUtterance]
   );
@@ -236,16 +239,12 @@ export const Assistant = ({ boothId }: AssistantProps) => {
 
       {/* メインコンテンツ */}
       <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 会話ストリーム (2/3) */}
-          <div className="lg:col-span-2">
-            <ConversationStream dialogue={dialogue} scores={scores} isAnalyzing={isAnalyzing} />
-          </div>
+        <div className="grid grid-cols-1 gap-6">
+          {/* 依存関係可視化レイアウト */}
+          <ConversationLayout dialogue={dialogue} scores={scores} isAnalyzing={isAnalyzing} />
 
-          {/* 重要発言サイドバー (1/3) */}
-          <div className="lg:col-span-1">
-            <ImportantHighlights importantList={importantList} anchorCount={anchorCount} />
-          </div>
+          {/* 重要発言サマリー */}
+          <ImportantHighlights importantList={importantList} anchorCount={anchorCount} />
         </div>
       </main>
 

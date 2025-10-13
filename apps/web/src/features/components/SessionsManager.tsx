@@ -48,6 +48,58 @@ export const SessionsManager = () => {
     window.open(url, '_blank');
   };
 
+  const handleClearSession = async (sessionId: string) => {
+    if (!confirm('この会話の履歴をリセットしますか？（セッションは保持されます）')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/clear`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        const errorMsg = data.message || data.error || 'Failed to clear session';
+        throw new Error(errorMsg);
+      }
+
+      alert('履歴をリセットしました');
+      fetchSessions();
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : '不明なエラー';
+      alert(`履歴のリセットに失敗しました: ${errorMsg}`);
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (
+      !confirm(
+        'このセッションを完全に削除しますか？\n（セッション情報・発話・スコアすべてが削除されます）'
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/delete`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        const errorMsg = data.message || data.error || 'Failed to delete session';
+        throw new Error(errorMsg);
+      }
+
+      alert('セッションを削除しました');
+      fetchSessions();
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : '不明なエラー';
+      alert(`セッションの削除に失敗しました: ${errorMsg}`);
+    }
+  };
+
   const filteredSessions = sessions
     .filter(s => {
       if (filterUser && !s.username?.includes(filterUser)) return false;
@@ -240,14 +292,32 @@ export const SessionsManager = () => {
                     {session.avg_score.toFixed(2)}
                   </td>
                   <td className="px-4 py-3 text-sm text-center">
-                    <a
-                      href={`/debug?session=${session.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
-                    >
-                      表示
-                    </a>
+                    <div className="flex items-center justify-center gap-2">
+                      <a
+                        href={`/debug?session=${session.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline text-xs"
+                      >
+                        表示
+                      </a>
+                      {session.utterance_count > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleClearSession(session.id)}
+                          className="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 underline text-xs"
+                        >
+                          リセット
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSession(session.id)}
+                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 underline text-xs"
+                      >
+                        削除
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

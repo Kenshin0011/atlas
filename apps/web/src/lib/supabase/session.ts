@@ -166,29 +166,48 @@ export const getSessionScores = async (sessionId: string): Promise<Map<number, S
  */
 export const subscribeToUtterances = (
   sessionId: string,
-  onUtterance: (utterance: Utterance) => void
+  onUtterance: (utterance: Utterance) => void,
+  onDelete?: () => void
 ) => {
-  return supabase
-    .channel(`utterances:${sessionId}`)
-    .on(
+  const channel = supabase.channel(`utterances:${sessionId}`);
+
+  // INSERT イベント
+  channel.on(
+    'postgres_changes',
+    {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'utterances',
+      filter: `session_id=eq.${sessionId}`,
+    },
+    payload => {
+      const row = payload.new;
+      onUtterance({
+        id: row.id as number,
+        speaker: row.speaker as string,
+        text: row.text as string,
+        timestamp: row.timestamp as number,
+      });
+    }
+  );
+
+  // DELETE イベント（履歴リセット検出用）
+  if (onDelete) {
+    channel.on(
       'postgres_changes',
       {
-        event: 'INSERT',
+        event: 'DELETE',
         schema: 'public',
         table: 'utterances',
         filter: `session_id=eq.${sessionId}`,
       },
-      payload => {
-        const row = payload.new;
-        onUtterance({
-          id: row.id as number,
-          speaker: row.speaker as string,
-          text: row.text as string,
-          timestamp: row.timestamp as number,
-        });
+      () => {
+        onDelete();
       }
-    )
-    .subscribe();
+    );
+  }
+
+  return channel.subscribe();
 };
 
 /**
@@ -214,4 +233,54 @@ export const subscribeToScores = (
       }
     )
     .subscribe();
+};
+
+/**
+ * セッションの発話とスコアを削除（履歴リセット）
+ */
+export const clearSessionData = async (sessionId: string): Promise<void> => {
+  // スコアを削除
+  const { error: scoresError } = await supabase
+    .from('ctide_scores')
+    .delete()
+    .eq('session_id', sessionId);
+
+  if (scoresError) throw scoresError;
+
+  // 発話を削除
+  const { error: utterancesError } = await supabase
+    .from('utterances')
+    .delete()
+    .eq('session_id', sessionId);
+
+  if (utterancesError) throw utterancesError;
+};
+
+/**
+ * セッション自体を削除（セッション + 発話 + スコア）
+ */
+export const deleteSession = async (sessionId: string): Promise<void> => {
+  // カスケード削除が有効な場合はセッション削除だけでOK
+  // 明示的に削除する場合は以下の順序で削除
+
+  // 1. スコアを削除
+  const { error: scoresError } = await supabase
+    .from('ctide_scores')
+    .delete()
+    .eq('session_id', sessionId);
+
+  if (scoresError) throw scoresError;
+
+  // 2. 発話を削除
+  const { error: utterancesError } = await supabase
+    .from('utterances')
+    .delete()
+    .eq('session_id', sessionId);
+
+  if (utterancesError) throw utterancesError;
+
+  // 3. セッションを削除
+  const { error: sessionError } = await supabase.from('sessions').delete().eq('id', sessionId);
+
+  if (sessionError) throw sessionError;
 };

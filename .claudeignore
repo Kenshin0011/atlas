@@ -18,7 +18,6 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
-./apps/web/.env.local
 
 # OS files
 .DS_Store

@@ -1,7 +1,11 @@
 export { Assistant } from './Assistant';
+export { ConversationLayout } from './ConversationLayout';
 export { ConversationStream } from './ConversationStream';
+export { ConversationStreamWithDependencies } from './ConversationStreamWithDependencies';
 export { DebugAnchorMemory } from './DebugAnchorMemory';
 export { DebugDashboard } from './DebugDashboard';
 export { DebugParameterControl } from './DebugParameterControl';
 export { DebugScoreDetails } from './DebugScoreDetails';
+export { DependencyArrow } from './DependencyArrow';
+export { DependencyMinimap } from './DependencyMinimap';
 export { ImportantHighlights } from './ImportantHighlights';

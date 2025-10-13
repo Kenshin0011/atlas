@@ -50,11 +50,50 @@ export async function POST(req: NextRequest) {
     const { history, current, options = {} } = body;
 
     // Validation
-    if (!Array.isArray(history) || !current || !current.text) {
-      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
-        status: 400,
-        headers: { 'content-type': 'application/json' },
-      });
+    if (!Array.isArray(history)) {
+      console.error('Invalid history:', history);
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body: history must be an array' }),
+        {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        }
+      );
+    }
+
+    // historyの各要素をバリデーション
+    const invalidHistoryItem = history.find(h => !h || !h.text || h.text.trim() === '');
+    if (invalidHistoryItem !== undefined) {
+      console.error('Invalid history item found:', invalidHistoryItem);
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body: history contains empty utterances' }),
+        {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        }
+      );
+    }
+
+    if (!current) {
+      console.error('Invalid current: current is missing');
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body: current utterance is missing' }),
+        {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        }
+      );
+    }
+
+    if (!current.text || current.text.trim() === '') {
+      console.error('Invalid current.text:', current);
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body: current.text is empty' }),
+        {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        }
+      );
     }
 
     const adapter = getAdapter();
