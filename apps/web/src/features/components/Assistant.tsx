@@ -7,7 +7,7 @@
 
 import type { Utterance } from '@atlas/core';
 import Link from 'next/link';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
@@ -20,9 +20,13 @@ type AssistantProps = {
   boothId: string;
 };
 
+type InputMode = 'speech' | 'text';
+
 export const Assistant = ({ boothId }: AssistantProps) => {
   const { user, loading: authLoading, signOut } = useAuth();
   const { isAdmin: isAdminUser } = useAdmin();
+  const [inputMode, setInputMode] = useState<InputMode>('speech');
+  const [textInput, setTextInput] = useState('');
 
   // ユーザー名を自動的に話者名として使用
   const speakerName = useMemo(() => {
@@ -75,28 +79,20 @@ export const Assistant = ({ boothId }: AssistantProps) => {
     },
   });
 
-  // 手動で発話追加（テスト用）
-  const handleManualAdd = () => {
-    if (!speakerName) return;
-
-    const testTexts = [
-      '今日の会議では新しいプロジェクトについて話します',
-      '予算は500万円を予定しています',
-      '開発期間は3ヶ月を見込んでいます',
-      'チームは5名で構成される予定です',
-      '最終的な決定は来週の火曜日に行います',
-    ];
-
-    const randomText = testTexts[Math.floor(Math.random() * testTexts.length)];
+  // テキスト入力による発話追加
+  const handleTextSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!speakerName || !textInput.trim()) return;
 
     const newUtterance: Utterance = {
       id: dialogue.length,
       speaker: speakerName,
-      text: randomText,
+      text: textInput.trim(),
       timestamp: Date.now(),
     };
 
     addUtterance(newUtterance);
+    setTextInput('');
   };
 
   return (
@@ -179,49 +175,72 @@ export const Assistant = ({ boothId }: AssistantProps) => {
                   ログアウト
                 </button>
               )}
-              {isSupported ? (
-                !isListening ? (
-                  <button
-                    type="button"
-                    onClick={startListening}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <title>開始</title>
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    開始
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={stopListening}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <title>停止</title>
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    停止
-                  </button>
-                )
-              ) : (
+
+              {/* モード切り替えボタン */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
                 <button
                   type="button"
-                  onClick={handleManualAdd}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                  onClick={() => setInputMode('speech')}
+                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                    inputMode === 'speech'
+                      ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-100 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                  disabled={!isSupported}
                 >
-                  テスト追加
+                  🎤 音声
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setInputMode('text')}
+                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                    inputMode === 'text'
+                      ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-100 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  ⌨️ テキスト
+                </button>
+              </div>
+
+              {/* 音声コントロール（固定幅で常に表示） */}
+              <div className="w-[100px]">
+                {inputMode === 'speech' &&
+                  isSupported &&
+                  (!isListening ? (
+                    <button
+                      type="button"
+                      onClick={startListening}
+                      className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <title>開始</title>
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      開始
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={stopListening}
+                      className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <title>停止</title>
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      停止
+                    </button>
+                  ))}
+              </div>
             </div>
           </div>
         </div>
@@ -230,6 +249,32 @@ export const Assistant = ({ boothId }: AssistantProps) => {
       {/* メインコンテンツ */}
       <main className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 gap-6">
+          {/* テキスト入力フォーム（テキストモードのみ） */}
+          {inputMode === 'text' && (
+            <form
+              onSubmit={handleTextSubmit}
+              className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4"
+            >
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={e => setTextInput(e.target.value)}
+                  placeholder="発話内容を入力..."
+                  className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={!speakerName}
+                />
+                <button
+                  type="submit"
+                  disabled={!speakerName || !textInput.trim()}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                >
+                  送信
+                </button>
+              </div>
+            </form>
+          )}
+
           {/* 重要発言サマリー */}
           <ImportantHighlights importantList={importantList} anchorCount={anchorCount} />
 
