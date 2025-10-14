@@ -75,7 +75,7 @@ export const ConversationLayout = ({
   };
 
   return (
-    <div className="flex gap-4 h-[800px]">
+    <div className="flex gap-4 h-full">
       {/* メイン: 会話ストリーム */}
       <div className="flex-1 min-w-0">
         <ConversationStreamWithDependencies
