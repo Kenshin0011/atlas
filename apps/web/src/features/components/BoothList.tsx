@@ -159,16 +159,6 @@ export const BoothList = () => {
           </form>
         </div>
 
-        {/* 説明テキスト */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-          <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">
-            ℹ️ ブースについて
-          </h3>
-          <p className="text-sm text-blue-700 dark:text-blue-400">
-            ブースは実験データを整理するための単位です。ブースごとに会話が記録され、後から分析できます。
-          </p>
-        </div>
-
         {/* 既存ブース一覧 */}
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6">
           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">
