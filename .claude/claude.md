@@ -14,25 +14,30 @@ atlas/
 │   └── web/              # Next.js 15 + React 19 application
 │       ├── src/
 │       │   ├── app/      # App Router pages and API routes
-│       │   ├── components/ # React components
-│       │   ├── services/ # Business logic (dependency analyzer, embeddings)
-│       │   ├── types/    # TypeScript type definitions
-│       │   └── utils/    # Utility functions
+│       │   ├── features/ # Feature modules
+│       │   │   ├── components/ # UI components
+│       │   │   └── hooks/      # Feature hooks (useStreamWithSupabase)
+│       │   ├── hooks/    # Shared hooks (useAuth, useSpeechRecognition)
+│       │   ├── lib/      # Libraries (supabase client, session management)
+│       │   └── services/ # Business logic (embedding service)
 │       └── package.json
 └── packages/
     └── atlas-core/       # Shared core library
         ├── src/
+        │   ├── analyzer/ # Importance detection algorithm
+        │   │   ├── scoring/     # Score calculation
+        │   │   ├── statistics/  # Statistical testing
+        │   │   └── adapters/    # External service adapters
         │   ├── format/   # Time formatting utilities
-        │   ├── math/     # Mathematical functions (similarity)
-        │   ├── temporal/ # Temporal decay functions
-        │   ├── text/     # Japanese text processing
-        │   └── types.ts  # Core type definitions
+        │   ├── types.ts  # Core type definitions
+        │   └── index.ts  # Exports
         └── package.json
 ```
 
 ### Technology Stack
 
 - **Frontend**: Next.js 15 (App Router), React 19, Tailwind CSS
+- **Backend**: Supabase (PostgreSQL + Realtime subscriptions)
 - **Speech Recognition**: Web Speech API (browser-native, free)
 - **AI/ML**: OpenAI text-embedding-3-small for semantic similarity
 - **Build Tools**: Turbo (monorepo), pnpm (package manager)
@@ -41,33 +46,34 @@ atlas/
 
 ## Core Concepts
 
-### Multi-Scale Temporal Dependencies
+### Importance Detection Algorithm
 
-ATLAS detects three types of dependencies:
+ATLAS detects important utterances in real-time conversations using:
 
-1. **Local Dependencies** (λ=0.5): Direct references to recent utterances (1-3 back)
-   - Uses OpenAI embeddings + cosine similarity
-   - Threshold: weight > 0.3
+1. **Anchor Memory**: Maintains k most important past utterances (default k=3)
+2. **Temporal Weighting**: Exponential decay based on distance (λ=0.15)
+3. **Masked Language Modeling**: Predicts current utterance from anchors using embeddings
+4. **Statistical Significance**: Uses permutation testing and p-value thresholding (α=0.1)
+5. **MMR-based Selection**: Balances relevance and diversity when selecting anchors (λ=0.7)
 
-2. **Topical Dependencies** (λ=0.2): References within the same topic
-   - Simple noun overlap heuristic (カタカナ/漢字)
-   - Looks at last 10 utterances
-   - Threshold: weight > 0.25
-
-3. **Global Dependencies** (λ=0.05): Long-term foreshadowing
-   - Not yet fully implemented
-   - For future enhancement
+**Key Parameters:**
+- `k`: Number of anchors to maintain (default: 3)
+- `alphaMix`: Weight mixing between base and masked loss (default: 0.7)
+- `halfLifeTurns`: Temporal decay half-life in turns (default: 10)
+- `nullSamples`: Number of null samples for permutation test (default: 100)
+- `fdrAlpha`: False discovery rate threshold (default: 0.1)
+- `mmrLambda`: MMR diversity parameter (default: 0.7)
 
 ### Temporal Decay Function
 
 ```typescript
-ω(distance, type) = β_type × exp(-λ_type × distance)
+ω(distance) = exp(-λ × distance)
+λ = ln(2) / halfLifeTurns
 ```
 
 Where:
-- `distance`: Number of utterances between current and referenced
-- `β`: Base weight (local: 1.0, topic: 0.8, global: 0.9)
-- `λ`: Decay rate (configurable per type)
+- `distance`: Number of utterances between current and anchor
+- `halfLifeTurns`: Number of turns for weight to decay to 50%
 
 ## Code Style Guide
 
@@ -118,72 +124,127 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 
 ## API Routes
 
-### POST /api/detect-dependency
+### POST /api/analyze
 
-Analyzes a new utterance and detects dependencies with previous utterances.
+Analyzes a new utterance for importance detection.
 
 **Request Body:**
 ```typescript
 {
-  dialogue: Utterance[];  // Conversation history
-  current: Utterance;     // New utterance to analyze
+  history: Utterance[];  // Previous utterances
+  current: Utterance;    // New utterance to analyze
+  options?: {
+    k?: number;
+    alphaMix?: number;
+    halfLifeTurns?: number;
+    nullSamples?: number;
+    fdrAlpha?: number;
+    mmrLambda?: number;
+  };
 }
 ```
 
 **Response:**
 ```typescript
 {
-  is_scain: boolean;
-  dependencies: Dependency[];
-  scain_type?: 'short-term' | 'mid-term' | 'long-term';
-  importance_score: number;
-  max_dependency_weight: number;
+  important: Array<{
+    id: number;
+    text: string;
+    score: number;
+    rank: number;
+    p?: number;
+    detail: {
+      baseLoss: number;
+      maskedLoss: number;
+      deltaLoss: number;
+      ageWeight: number;
+      finalScore: number;
+    };
+  }>;
+  scored: Array</* same as important */>;
+  anchorCount: number;
 }
 ```
+
+### Session Management Routes
+
+- **GET /api/sessions**: List all sessions with statistics
+- **GET /api/sessions/export**: Export sessions as JSON or CSV
+- **GET /api/sessions/[sessionId]**: Get session utterances
+- **GET /api/sessions/[sessionId]/scores**: Get session scores
+- **POST /api/sessions/[sessionId]/clear**: Clear session data (keep session)
+- **DELETE /api/sessions/[sessionId]/delete**: Delete entire session
 
 ## Key Files
 
 ### Core Logic
 
-- **`apps/web/src/services/dependencyAnalyzer.ts`**: Main dependency detection logic
+- **`apps/web/src/app/api/analyze/route.ts`**: Importance analysis API endpoint
+- **`packages/atlas-core/src/analyzer/`**: Importance detection algorithm implementation
+  - `analyzer.ts`: Main analysis orchestration
+  - `anchor-memory.ts`: Anchor memory management
+  - `scoring/`: Score calculation modules
+  - `statistics/`: Statistical testing (permutation tests)
+  - `diversify.ts`: MMR-based anchor selection
+  - `null-samples.ts`: Null distribution generation
 - **`apps/web/src/services/embeddingService.ts`**: OpenAI embeddings wrapper
-- **`packages/atlas-core/src/math/similarity.ts`**: Cosine similarity calculation
-- **`packages/atlas-core/src/temporal/decay.ts`**: Temporal decay function
 
-### UI Components
+### React Hooks
 
-- **`apps/web/src/components/ConversationAssistant.tsx`**: Main orchestration component
-- **`apps/web/src/components/ControlPanel.tsx`**: Start/Stop/Clear controls
-- **`apps/web/src/components/ConversationView.tsx`**: Conversation history display
-- **`apps/web/src/components/NotificationPanel.tsx`**: Smart notifications
+- **`apps/web/src/features/hooks/useStreamWithSupabase.ts`**: Main hook for Supabase-backed conversation stream
+- **`apps/web/src/hooks/useSpeechRecognition.ts`**: Web Speech API wrapper
+- **`apps/web/src/hooks/useAuth.ts`**: Supabase authentication
+- **`apps/web/src/hooks/useAdmin.ts`**: Admin role detection
+
+### UI Components (Features)
+
+- **`apps/web/src/features/components/Assistant.tsx`**: Main booth conversation component
+- **`apps/web/src/features/components/ConversationLayout.tsx`**: Layout with dependency visualization
+- **`apps/web/src/features/components/ConversationStreamWithDependencies.tsx`**: Current utterance display
+- **`apps/web/src/features/components/ImportantHighlights.tsx`**: Important utterances panel
+- **`apps/web/src/features/components/DependencyMinimap.tsx`**: Visual dependency graph
+- **`apps/web/src/features/components/DebugDashboard.tsx`**: Real-time debugging dashboard
+- **`apps/web/src/features/components/DebugConversationView.tsx`**: Conversation with inline scores
+- **`apps/web/src/features/components/SessionsManager.tsx`**: Admin session management
+
+### Supabase Integration
+
+- **`apps/web/src/lib/supabase/client.ts`**: Supabase client initialization
+- **`apps/web/src/lib/supabase/session.ts`**: Session CRUD and real-time subscriptions
+- **`apps/web/src/lib/supabase/username.ts`**: Email to username conversion
 
 ### Type Definitions
 
-- **`packages/atlas-core/src/types.ts`**: Core types (Utterance, Dependency, SCAINResult)
-- **`apps/web/src/types/speech.ts`**: Web Speech API type definitions
+- **`packages/atlas-core/src/types.ts`**: Core types (Utterance, analysis options)
+- **`apps/web/src/features/hooks/useStream.ts`**: Score and ImportantUtterance types
 
 ## Environment Variables
 
 Required in `apps/web/.env.local`:
 
 ```bash
+# OpenAI API (for embeddings)
 OPENAI_API_KEY=sk-...
+
+# Supabase (for session management and real-time sync)
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Admin Users (comma-separated emails)
+NEXT_PUBLIC_ADMIN_USERS=admin@example.com,admin2@example.com
 ```
+
+**Note:** `SUPABASE_SERVICE_ROLE_KEY` is used for admin operations (bypasses RLS) and should be kept secret.
 
 ## Known Issues
 
 1. **Empty string validation**: OpenAI embeddings API rejects empty strings - handled with validation
 2. **Web Speech API restart**: Continuous mode sometimes stops - auto-restarts in `onend` handler
-3. **Embedding index alignment**: After filtering empty strings, ensure array indices match
+3. **Real-time sync delays**: Supabase real-time updates may have slight delays (~100-500ms)
+4. **Low detection rate**: Short conversations (<10 utterances) may have few important detections due to statistical significance requirements
 
 ## Development Tips
-
-### Adding New Dependency Types
-
-1. Create new computation function in `dependencyAnalyzer.ts`
-2. Add to `detectDependencies()` function
-3. Update `SCAINResult` type if needed
-4. Add new decay parameter to `DEFAULT_CONFIG`
 
 ### Testing Speech Recognition
 
@@ -192,20 +253,42 @@ OPENAI_API_KEY=sk-...
 - Check console for recognition events
 - Monitor API calls in Network tab
 
-### Debugging Dependency Detection
+### Debugging Importance Detection
 
-- Add console.logs in `computeLocalDependencies()`
-- Check embedding dimensions (should be 1536 for text-embedding-3-small)
-- Verify cosine similarity values (should be between -1 and 1)
-- Inspect temporal decay weights
+1. Open `/debug?session=<sessionId>` for real-time visualization
+2. Check console for score calculation logs:
+   - `[useStreamWithSupabase] スコア保存: ID=X, score=Y, p=Z`
+3. Verify embedding dimensions (should be 1536 for text-embedding-3-small)
+4. Check p-values in DebugConversationView (green if < fdrAlpha)
+5. Inspect anchor count and score details
+
+### Admin Session Management
+
+1. Navigate to `/sessions` (requires admin role)
+2. View all sessions with statistics
+3. Click ▶ to expand and view conversation history
+4. Use "リセット" to clear data while keeping session
+5. Use "削除" to completely remove session
+6. Export data as JSON or CSV
+
+### Adjusting Detection Sensitivity
+
+If too few/many important utterances are detected, adjust these parameters:
+
+- **Increase `fdrAlpha`** (0.1 → 0.15): More lenient detection
+- **Decrease `k`** (3 → 2): Fewer anchors, higher importance threshold
+- **Increase `halfLifeTurns`** (10 → 15): Longer temporal memory
+- **Decrease `nullSamples`** (100 → 50): Faster but less accurate p-values
 
 ## Future Enhancements
 
-1. **Custom hooks**: Extract speech recognition logic into `useSpeechRecognition.ts`
-2. **Global dependencies**: Implement foreshadowing detection
+1. **Dependency graph visualization**: Interactive node graph in debug view
+2. **Multi-language support**: Extend beyond Japanese
 3. **Speaker diarization**: Automatic speaker identification
 4. **Context recovery**: Smart summaries for missed conversation parts
 5. **User attention monitoring**: Detect when user is away
+6. **Adaptive thresholding**: Adjust fdrAlpha based on conversation length
+7. **Export conversation with highlights**: PDF/DOCX export with important utterances marked
 
 ## Contributing
 
