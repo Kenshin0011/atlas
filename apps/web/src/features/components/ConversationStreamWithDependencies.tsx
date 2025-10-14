@@ -7,7 +7,6 @@
 
 import type { Utterance } from '@atlas/core';
 import { formatTimeAgo } from '@atlas/core';
-import { useEffect, useRef, useState } from 'react';
 import type { Score } from '../hooks/useStream';
 import { DependencyArrow } from './DependencyArrow';
 
@@ -26,22 +25,12 @@ export const ConversationStreamWithDependencies = ({
   isAnalyzing = false,
   highlightedIds = [],
 }: ConversationStreamWithDependenciesProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
-
-  // 自動スクロール
-  useEffect(() => {
-    if (autoScroll && containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
-  }, [autoScroll]);
-
   if (dialogue.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 text-center">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 text-center">
         <div className="text-slate-400 dark:text-slate-500">
           <svg
-            className="w-20 h-20 mx-auto mb-4"
+            className="w-12 h-12 mx-auto mb-3"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -56,7 +45,7 @@ export const ConversationStreamWithDependencies = ({
               d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
             />
           </svg>
-          <p className="text-lg font-medium mb-2">会話を開始してください</p>
+          <p className="text-base font-medium mb-1">会話を開始してください</p>
           <p className="text-sm">発話が追加されると、Atlasがリアルタイムで重要度を分析します</p>
         </div>
       </div>
@@ -84,13 +73,11 @@ export const ConversationStreamWithDependencies = ({
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg flex flex-col h-full">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg">
       {/* ヘッダー */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+      <div className="p-3 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-            会話ストリーム
-          </h2>
+          <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">現在の発話</h2>
           <div className="flex items-center gap-3">
             {isAnalyzing && (
               <span className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-2">
@@ -117,26 +104,18 @@ export const ConversationStreamWithDependencies = ({
             <span className="text-sm text-slate-500 dark:text-slate-400">
               {dialogue.length} 発話
             </span>
-            <label className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-              <input
-                type="checkbox"
-                checked={autoScroll}
-                onChange={e => setAutoScroll(e.target.checked)}
-                className="rounded"
-              />
-              自動スクロール
-            </label>
           </div>
         </div>
       </div>
 
-      {/* 会話リスト */}
-      <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-1">
-        {dialogue.map((utterance, idx) => {
+      {/* 現在の発話 */}
+      <div className="p-4">
+        {dialogue.slice(-1).map((utterance, _idx) => {
+          const displayIndex = dialogue.length; // 最後の発話なので全体の長さ
           const score = scores.get(utterance.id);
           const isHighlighted = highlightedIds.includes(utterance.id);
           const hasDependencyTo = dependencies.get(utterance.id);
-          const previousUtterance = idx > 0 ? dialogue[idx - 1] : null;
+          const previousUtterance = dialogue.length > 1 ? dialogue[dialogue.length - 2] : null;
           const isDependencyFrom =
             previousUtterance && dependencies.get(previousUtterance.id) === utterance.id;
 
@@ -179,17 +158,17 @@ export const ConversationStreamWithDependencies = ({
                 type="button"
                 onClick={() => onUtteranceClick?.(utterance)}
                 data-utterance-id={utterance.id}
-                className={`w-full text-left p-4 rounded-lg transition-all ${colorClass} ${highlightClass} ${
+                className={`w-full text-left p-3 rounded-lg transition-all ${colorClass} ${highlightClass} ${
                   onUtteranceClick ? 'cursor-pointer hover:shadow-md' : ''
                 }`}
               >
                 {/* ヘッダー */}
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                      [{utterance.id}]
+                      [#{displayIndex}]
                     </span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                       {utterance.speaker}
                     </span>
                     <span className="text-xs text-slate-500 dark:text-slate-400">
@@ -199,10 +178,10 @@ export const ConversationStreamWithDependencies = ({
 
                   {/* スコアバッジ */}
                   {score && (
-                    <div className="flex items-center gap-2">
-                      {score.isImportant && <span className="text-lg">⭐</span>}
+                    <div className="flex items-center gap-1.5">
+                      {score.isImportant && <span className="text-base">⭐</span>}
                       <span
-                        className={`text-xs font-bold px-2 py-1 rounded ${
+                        className={`text-xs font-bold px-1.5 py-0.5 rounded ${
                           level === 'critical'
                             ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                             : level === 'high'
@@ -220,7 +199,7 @@ export const ConversationStreamWithDependencies = ({
 
                 {/* 発言内容 */}
                 <p
-                  className={`leading-relaxed ${
+                  className={`text-sm leading-relaxed ${
                     score?.isImportant
                       ? 'text-slate-900 dark:text-slate-100 font-medium'
                       : 'text-slate-700 dark:text-slate-300'
@@ -228,24 +207,6 @@ export const ConversationStreamWithDependencies = ({
                 >
                   {utterance.text}
                 </p>
-
-                {/* 詳細（重要発言のみ） */}
-                {score?.isImportant && (
-                  <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-600">
-                    <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
-                      <span>Δ損失: {score.detail.deltaLoss.toFixed(3)}</span>
-                      <span>時間減衰: {score.detail.ageWeight.toFixed(2)}</span>
-                      {score.pValue !== undefined && (
-                        <span className="text-purple-600 dark:text-purple-400">
-                          p = {score.pValue.toFixed(3)}
-                        </span>
-                      )}
-                      <span className="text-blue-600 dark:text-blue-400">
-                        ランク: #{score.rank}
-                      </span>
-                    </div>
-                  </div>
-                )}
               </button>
 
               {/* 依存先への矢印 */}

@@ -230,11 +230,11 @@ export const Assistant = ({ boothId }: AssistantProps) => {
       {/* メインコンテンツ */}
       <main className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 gap-6">
-          {/* 依存関係可視化レイアウト */}
-          <ConversationLayout dialogue={dialogue} scores={scores} isAnalyzing={isAnalyzing} />
-
           {/* 重要発言サマリー */}
           <ImportantHighlights importantList={importantList} anchorCount={anchorCount} />
+
+          {/* 依存関係可視化レイアウト */}
+          <ConversationLayout dialogue={dialogue} scores={scores} isAnalyzing={isAnalyzing} />
         </div>
       </main>
 
