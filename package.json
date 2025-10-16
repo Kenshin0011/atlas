@@ -12,6 +12,7 @@
     "biome:check": "biome check .",
     "biome:fix": "biome check --write .",
     "with-env": "dotenv -e .env.local --",
+    "db:types": "dotenv -e .env.local -- pnpm --filter @atlas/web db:types",
     "analyze": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run analyze",
     "evaluate": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run evaluate",
     "explain": "dotenv -e .env.local -- pnpm --filter @atlas/experiments run explain",

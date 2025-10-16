@@ -15,6 +15,6 @@
     "@atlas/tsconfig": "workspace:*"
   },
   "dependencies": {
-    "openai": "^4.77.3"
+    "openai": "4.77.3"
   }
 }

@@ -33,14 +33,14 @@ importers:
         specifier: workspace:*
         version: link:../../packages/atlas-ui
       '@supabase/supabase-js':
-        specifier: ^2.75.0
+        specifier: 2.75.0
         version: 2.75.0
       next:
         specifier: 15.5.4
         version: 15.5.4(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       openai:
-        specifier: ^4.77.3
-        version: 4.104.0(ws@8.18.3)
+        specifier: 4.77.3
+        version: 4.77.3
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -71,8 +71,8 @@ importers:
   packages/atlas-core:
     dependencies:
       openai:
-        specifier: ^4.77.3
-        version: 4.104.0(ws@8.18.3)
+        specifier: 4.77.3
+        version: 4.77.3
     devDependencies:
       '@atlas/tsconfig':
         specifier: workspace:*
@@ -103,10 +103,10 @@ importers:
   packages/configs/tailwind:
     dependencies:
       '@tailwindcss/postcss':
-        specifier: ^4.1.14
+        specifier: 4.1.14
         version: 4.1.14
       tailwindcss:
-        specifier: ^4.1.14
+        specifier: 4.1.14
         version: 4.1.14
 
   packages/configs/tsconfig:
@@ -1249,15 +1249,12 @@ packages:
   node-releases@2.0.23:
     resolution: {integrity: sha512-cCmFDMSm26S6tQSDpBCg/NR8NENrVPhAJSf+XbxBG4rPFaaonlEoE9wHQmun+cls499TQGSb7ZyPBRlzgKfpeg==}
 
-  openai@4.104.0:
-    resolution: {integrity: sha512-p99EFNsA/yX6UhVO93f5kJsDRLAg+CTA2RBqdHK4RtK8u5IJw32Hyb2dTGKbnnFmnuoBv5r7Z2CURI9sGZpSuA==}
+  openai@4.77.3:
+    resolution: {integrity: sha512-wLDy4+KWHz31HRFMW2+9KQuVuT2QWhs0z94w1Gm1h2Ut9vIHr9/rHZggbykZEfyiaJRVgw8ZS9K6AylDWzvPYw==}
     hasBin: true
     peerDependencies:
-      ws: ^8.18.0
       zod: ^3.23.8
     peerDependenciesMeta:
-      ws:
-        optional: true
       zod:
         optional: true
 
@@ -2429,7 +2426,7 @@ snapshots:
 
   node-releases@2.0.23: {}
 
-  openai@4.104.0(ws@8.18.3):
+  openai@4.77.3:
     dependencies:
       '@types/node': 18.19.129
       '@types/node-fetch': 2.6.13
@@ -2438,8 +2435,6 @@ snapshots:
       form-data-encoder: 1.7.2
       formdata-node: 4.4.1
       node-fetch: 2.7.0
-    optionalDependencies:
-      ws: 8.18.3
     transitivePeerDependencies:
       - encoding
 
