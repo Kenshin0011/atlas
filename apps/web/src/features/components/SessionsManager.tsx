@@ -6,6 +6,13 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  clearSessionDataAction,
+  deleteSessionAction,
+  exportSessionsAction,
+  getSessionsAction,
+  getSessionUtterancesAction,
+} from '@/app/actions/session';
 
 type Session = {
   id: string;
@@ -39,9 +46,20 @@ export const SessionsManager = () => {
   const fetchSessions = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/sessions');
-      const data = await response.json();
-      setSessions(data.sessions || []);
+      const sessions = await getSessionsAction();
+      setSessions(
+        sessions.map(s => ({
+          id: s.id,
+          created_at: s.createdAt,
+          username: s.username,
+          tags: s.tags || null,
+          notes: s.notes || null,
+          experiment_params: s.experimentParams,
+          utterance_count: s.utteranceCount,
+          important_count: s.importantCount,
+          avg_score: s.avgScore,
+        }))
+      );
     } catch (error) {
       console.error('Failed to fetch sessions:', error);
     } finally {
@@ -54,8 +72,23 @@ export const SessionsManager = () => {
   }, [fetchSessions]);
 
   const handleExport = async (format: 'json' | 'csv') => {
-    const url = `/api/sessions/export?format=${format}`;
-    window.open(url, '_blank');
+    try {
+      const data = await exportSessionsAction(format);
+      const blob = new Blob([data], {
+        type: format === 'csv' ? 'text/csv' : 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sessions-${new Date().toISOString()}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('エクスポートに失敗しました');
+    }
   };
 
   const handleClearSession = async (sessionId: string) => {
@@ -64,16 +97,7 @@ export const SessionsManager = () => {
     }
 
     try {
-      const response = await fetch(`/api/sessions/${sessionId}/clear`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        const errorMsg = data.message || data.error || 'Failed to clear session';
-        throw new Error(errorMsg);
-      }
-
+      await clearSessionDataAction(sessionId);
       alert('履歴をリセットしました');
       fetchSessions();
     } catch (error) {
@@ -92,16 +116,7 @@ export const SessionsManager = () => {
     }
 
     try {
-      const response = await fetch(`/api/sessions/${sessionId}/delete`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        const errorMsg = data.message || data.error || 'Failed to delete session';
-        throw new Error(errorMsg);
-      }
-
+      await deleteSessionAction(sessionId);
       alert('セッションを削除しました');
       fetchSessions();
     } catch (error) {
@@ -123,14 +138,8 @@ export const SessionsManager = () => {
     setLoadingUtterances(true);
 
     try {
-      const response = await fetch(`/api/sessions/${sessionId}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || data.error || 'Failed to fetch utterances');
-      }
-
-      setUtterances(data.utterances || []);
+      const utterances = await getSessionUtterancesAction(sessionId);
+      setUtterances(utterances);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '不明なエラー';
       alert(`発話の取得に失敗しました: ${errorMsg}`);
@@ -153,7 +162,7 @@ export const SessionsManager = () => {
         case 'important':
           return b.important_count - a.important_count;
         case 'score':
-          return b.avg_score - a.avg_score;
+          return (b.avg_score ?? 0) - (a.avg_score ?? 0);
         default:
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
@@ -163,7 +172,9 @@ export const SessionsManager = () => {
   const totalUtterances = sessions.reduce((sum, s) => sum + s.utterance_count, 0);
   const totalImportant = sessions.reduce((sum, s) => sum + s.important_count, 0);
   const avgScore =
-    sessions.length > 0 ? sessions.reduce((sum, s) => sum + s.avg_score, 0) / sessions.length : 0;
+    sessions.length > 0
+      ? sessions.reduce((sum, s) => sum + (s.avg_score ?? 0), 0) / sessions.length
+      : 0;
 
   if (loading) {
     return (
@@ -342,7 +353,7 @@ export const SessionsManager = () => {
                         {session.important_count}
                       </td>
                       <td className="px-4 py-3 text-sm text-right text-purple-600 dark:text-purple-400 font-medium">
-                        {session.avg_score.toFixed(2)}
+                        {(session.avg_score ?? 0).toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-sm text-center">
                         <div className="flex items-center justify-center gap-2">

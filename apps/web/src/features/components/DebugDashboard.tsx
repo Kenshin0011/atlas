@@ -15,8 +15,8 @@ import { emailToUsername } from '@/lib/supabase/username';
 import { useStreamWithSupabase } from '../hooks/useStreamWithSupabase';
 import { DebugAnchorMemory } from './DebugAnchorMemory';
 import { DebugConversationView } from './DebugConversationView';
+import { DebugDependencyTree } from './DebugDependencyTree';
 import { DebugParameterControl } from './DebugParameterControl';
-import { DebugScoreDetails } from './DebugScoreDetails';
 
 const DebugDashboardContent = () => {
   const searchParams = useSearchParams();
@@ -46,6 +46,7 @@ const DebugDashboardContent = () => {
     dialogue,
     scores,
     importantList,
+    dependencies,
     addUtterance,
     isAnalyzing,
     anchorCount,
@@ -251,12 +252,20 @@ const DebugDashboardContent = () => {
               }}
             />
             <DebugAnchorMemory importantList={importantList} anchorCount={anchorCount} />
-            <DebugScoreDetails dialogue={dialogue} scores={scores} />
           </div>
 
-          {/* 右カラム: 会話履歴（スコア付き） */}
-          <div className="lg:col-span-2">
-            <DebugConversationView dialogue={dialogue} scores={scores} />
+          {/* 中央カラム: 会話履歴（スコア付き） */}
+          <div className="lg:col-span-1">
+            <DebugConversationView
+              dialogue={dialogue}
+              scores={scores}
+              dependencies={dependencies}
+            />
+          </div>
+
+          {/* 右カラム: 依存関係ツリー */}
+          <div className="lg:col-span-1">
+            <DebugDependencyTree dialogue={dialogue} scores={scores} dependencies={dependencies} />
           </div>
         </div>
       </main>

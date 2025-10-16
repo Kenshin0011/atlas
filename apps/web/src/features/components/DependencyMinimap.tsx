@@ -8,12 +8,6 @@
 import type { Utterance } from '@atlas/core';
 import type { Score } from '../hooks/useStream';
 
-type Chain = {
-  ids: number[];
-  maxDeltaLoss: number;
-  minPValue: number;
-};
-
 type DependencyMinimapProps = {
   dialogue: Utterance[];
   scores: Map<number, Score>;
@@ -43,117 +37,45 @@ export const DependencyMinimap = ({
     );
   }
 
-  // 連鎖を検出（連続するID）
-  const chains: Chain[] = [];
-  let currentChain: number[] = [];
-
-  for (let i = 0; i < importantUtterances.length; i++) {
-    const curr = importantUtterances[i];
-    const next = importantUtterances[i + 1];
-
-    currentChain.push(curr.id);
-
-    // 次の発話が連続していない、または最後の発話の場合
-    if (!next || next.id !== curr.id + 1) {
-      if (currentChain.length >= 1) {
-        // チェーンの統計を計算
-        const chainScores = currentChain
-          .map(id => scores.get(id))
-          .filter((s): s is Score => s !== undefined);
-
-        chains.push({
-          ids: [...currentChain],
-          maxDeltaLoss: Math.max(...chainScores.map(s => s.detail.deltaLoss)),
-          minPValue: Math.min(...chainScores.map(s => s.pValue ?? 1)),
-        });
-      }
-      currentChain = [];
-    }
-  }
-
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4">
       <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
         依存関係マップ
       </h3>
 
-      <div className="space-y-4">
-        {chains.map((chain, chainIdx) => (
-          <div key={chain.ids[0]} className="relative">
-            {/* チェーン情報 */}
-            <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-              連鎖 {chainIdx + 1} ({chain.ids.length}発話)
-            </div>
+      <div className="space-y-1">
+        {importantUtterances.map((utt, idx) => {
+          const isActive = utt.id === currentId;
+          const utterance = dialogue.find(u => u.id === utt.id);
 
-            {/* ノード表示 */}
-            <div className="space-y-1">
-              {chain.ids.map((id, idx) => {
-                const score = scores.get(id);
-                const isActive = id === currentId;
+          return (
+            <div key={utt.id} className="flex items-start gap-2">
+              {/* 接続線 */}
+              {idx > 0 && (
+                <div className="w-3 h-6 border-l-2 border-green-300 dark:border-green-700 -mt-3 ml-1" />
+              )}
 
-                // 色判定
-                const color =
-                  score?.pValue !== undefined && score.pValue < 0.05
-                    ? 'bg-red-500'
-                    : score?.pValue !== undefined && score.pValue < 0.1
-                      ? 'bg-orange-500'
-                      : 'bg-green-500';
-
-                return (
-                  <div key={id} className="flex items-center gap-2">
-                    {/* 接続線 */}
-                    {idx > 0 && (
-                      <div className="w-4 h-4 border-l-2 border-slate-300 dark:border-slate-600 -mt-2" />
-                    )}
-
-                    {/* ノード */}
-                    <button
-                      type="button"
-                      onClick={() => onNodeClick?.(id)}
-                      className={`
-												flex items-center gap-2 px-2 py-1 rounded text-xs
-												transition-all
-												${isActive ? 'ring-2 ring-blue-500' : ''}
-												${onNodeClick ? 'hover:bg-slate-100 dark:hover:bg-slate-700' : ''}
-											`}
-                    >
-                      <div className={`w-2 h-2 rounded-full ${color}`} />
-                      <span className="font-mono text-slate-700 dark:text-slate-300">[{id}]</span>
-                      {score && (
-                        <span className="text-slate-500 dark:text-slate-400">
-                          {score.score.toFixed(2)}
-                        </span>
-                      )}
-                    </button>
+              {/* ノード */}
+              <button
+                type="button"
+                onClick={() => onNodeClick?.(utt.id)}
+                className={`
+                  flex items-start gap-2 px-3 py-2 rounded-lg text-xs flex-1
+                  transition-all bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800
+                  ${isActive ? 'ring-2 ring-blue-500' : ''}
+                  ${onNodeClick ? 'hover:bg-green-100 dark:hover:bg-green-900/30' : ''}
+                `}
+              >
+                <div className="w-2 h-2 rounded-full bg-green-500 mt-1 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-slate-700 dark:text-slate-300 break-words">
+                    {utterance?.text}
                   </div>
-                );
-              })}
+                </div>
+              </button>
             </div>
-
-            {/* チェーンの統計 */}
-            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 pl-6">
-              最大Δ: {chain.maxDeltaLoss.toFixed(3)} | 最小p: {chain.minPValue.toFixed(3)}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 凡例 */}
-      <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-        <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <span>p &lt; 0.05 (超重要)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-orange-500" />
-            <span>p &lt; 0.1 (重要)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span>検出済み</span>
-          </div>
-        </div>
+          );
+        })}
       </div>
     </div>
   );

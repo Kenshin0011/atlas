@@ -8,9 +8,9 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useId, useState } from 'react';
+import { createSessionAction, getSessionsAction } from '@/app/actions/session';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useAuth } from '@/hooks/useAuth';
-import { type BoothInfo, createSession } from '@/lib/supabase/session';
 import { emailToUsername } from '@/lib/supabase/username';
 
 type Session = {
@@ -36,9 +36,16 @@ export const BoothList = () => {
   const fetchBooths = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/sessions');
-      const data = await response.json();
-      setExistingBooths(data.sessions || []);
+      const sessions = await getSessionsAction();
+      setExistingBooths(
+        sessions.map(s => ({
+          id: s.id,
+          created_at: s.createdAt,
+          username: s.username,
+          notes: s.notes || null,
+          tags: s.tags || null,
+        }))
+      );
     } catch (err) {
       console.error('Failed to fetch booths:', err);
     } finally {
@@ -56,11 +63,11 @@ export const BoothList = () => {
     setIsCreating(true);
 
     try {
-      const boothInfo: BoothInfo = {
+      const boothInfo = {
         name: boothName,
       };
 
-      const sessionId = await createSession(boothInfo);
+      const sessionId = await createSessionAction(boothInfo);
       // ブースリストを更新してから遷移
       await fetchBooths();
       router.push(`/booth/${sessionId}`);

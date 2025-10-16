@@ -9,17 +9,23 @@
 import { defaultOptions, type Utterance } from '@atlas/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  createSession,
+  createSessionAction,
+  saveBatchScoresAction,
+  saveDependenciesAction,
+  saveUtteranceAction,
+} from '@/app/actions/session';
+import { supabase } from '@/lib/supabase/client';
+import {
+  getSessionDependencies,
   getSessionInfo,
   getSessionScores,
   getSessionUtterances,
   type SessionInfo,
-  saveScore,
-  saveUtterance,
+  subscribeToDependencies,
   subscribeToScores,
   subscribeToUtterances,
 } from '@/lib/supabase/session';
-import type { ImportantUtterance, Score } from './useStream';
+import type { DependencyEdge, ImportantUtterance, Score } from './useStream';
 
 export type UseStreamWithSupabaseReturn = {
   // セッションID
@@ -32,6 +38,8 @@ export type UseStreamWithSupabaseReturn = {
   scores: Map<number, Score>;
   // 重要発言リスト（時系列順）
   importantList: ImportantUtterance[];
+  // 依存関係エッジ
+  dependencies: DependencyEdge[];
   // 発話を追加
   addUtterance: (utterance: Utterance) => Promise<void>;
   // 分析中フラグ
@@ -68,6 +76,7 @@ export const useStreamWithSupabase = (
   const [dialogue, setDialogue] = useState<Utterance[]>([]);
   const [scores, setScores] = useState<Map<number, Score>>(new Map());
   const [importantList, setImportantList] = useState<ImportantUtterance[]>([]);
+  const [dependencies, setDependencies] = useState<DependencyEdge[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [anchorCount, setAnchorCount] = useState(0);
@@ -81,14 +90,16 @@ export const useStreamWithSupabase = (
       try {
         if (providedSessionId) {
           // 既存セッションを読み込む
-          const [info, utterances, scoreMap] = await Promise.all([
+          const [info, utterances, scoreMap, deps] = await Promise.all([
             getSessionInfo(providedSessionId),
             getSessionUtterances(providedSessionId),
             getSessionScores(providedSessionId),
+            getSessionDependencies(providedSessionId),
           ]);
           setSessionInfo(info);
           setDialogue(utterances);
           setScores(scoreMap);
+          setDependencies(deps);
 
           // 重要発言リストを構築
           const important: ImportantUtterance[] = [];
@@ -107,7 +118,7 @@ export const useStreamWithSupabase = (
           setSessionId(providedSessionId);
         } else {
           // 新規セッションを作成
-          const newSessionId = await createSession();
+          const newSessionId = await createSessionAction();
           setSessionId(newSessionId);
           // セッション情報を取得
           const info = await getSessionInfo(newSessionId);
@@ -132,6 +143,7 @@ export const useStreamWithSupabase = (
       setDialogue([]);
       setScores(new Map());
       setImportantList([]);
+      setDependencies([]);
       setAnchorCount(0);
     };
 
@@ -176,9 +188,21 @@ export const useStreamWithSupabase = (
       }
     });
 
+    const dependencyChannel = subscribeToDependencies(sessionId, edge => {
+      setDependencies(prev => {
+        // 重複を避けるため、同じエッジがあれば追加しない
+        const existingEdges = new Set(prev.map(e => `${e.from}-${e.to}`));
+        if (existingEdges.has(`${edge.from}-${edge.to}`)) {
+          return prev;
+        }
+        return [...prev, edge];
+      });
+    });
+
     return () => {
       utteranceChannel.unsubscribe();
       scoreChannel.unsubscribe();
+      dependencyChannel.unsubscribe();
     };
   }, [sessionId]);
 
@@ -199,8 +223,14 @@ export const useStreamWithSupabase = (
       setError(null);
 
       try {
+        // ユーザー情報を1回だけ取得
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const username = user?.email ? user.email.split('@')[0] : null;
+
         // Supabaseに発話を保存
-        const dbUtteranceId = await saveUtterance(sessionId, utterance);
+        const dbUtteranceId = await saveUtteranceAction(sessionId, utterance, user?.id, username);
 
         // ローカル状態を更新（IDをDB側のものに同期）
         const savedUtterance: Utterance = {
@@ -216,76 +246,55 @@ export const useStreamWithSupabase = (
           return;
         }
 
-        // 会話分析
+        // 会話分析（Server Action）
         const history = updatedDialogue.slice(0, -1);
         const current = savedUtterance;
 
-        const response = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            history,
-            current,
-            options: {
-              k: analysisOptions.k ?? defaultOptions.k,
-              alphaMix: analysisOptions.alphaMix ?? defaultOptions.alphaMix,
-              halfLifeTurns: analysisOptions.halfLifeTurns ?? defaultOptions.halfLifeTurns,
-              nullSamples: analysisOptions.nullSamples ?? defaultOptions.nullSamples,
-              fdrAlpha: analysisOptions.fdrAlpha ?? defaultOptions.fdrAlpha,
-              mmrLambda: analysisOptions.mmrLambda ?? defaultOptions.mmrLambda,
-            },
-          }),
+        const { analyzeConversationAction } = await import('@/app/actions/analysis');
+
+        const data = await analyzeConversationAction(history, current, {
+          k: analysisOptions.k ?? defaultOptions.k,
+          alphaMix: analysisOptions.alphaMix ?? defaultOptions.alphaMix,
+          halfLifeTurns: analysisOptions.halfLifeTurns ?? defaultOptions.halfLifeTurns,
+          nullSamples: analysisOptions.nullSamples ?? defaultOptions.nullSamples,
+          fdrAlpha: analysisOptions.fdrAlpha ?? defaultOptions.fdrAlpha,
+          mmrLambda: analysisOptions.mmrLambda ?? defaultOptions.mmrLambda,
         });
 
-        if (!response.ok) {
-          throw new Error(`Analysis API error: ${response.statusText}`);
-        }
+        // スコアマップ更新
+        const scoresToSave: Array<{ utteranceId: number; score: Score }> = [];
 
-        const data: {
-          important: Array<{
-            id: number;
-            text: string;
-            score: number;
-            rank: number;
-            p?: number;
-            detail: Score['detail'];
-          }>;
-          scored: Array<{
-            id: number;
-            text: string;
-            score: number;
-            rank: number;
-            p?: number;
-            detail: Score['detail'];
-          }>;
-          anchorCount: number;
-        } = await response.json();
+        // 重要発話のIDをSetに入れておく
+        const importantIds = new Set(data.important.map(item => item.id));
 
-        // スコアマップ更新 & Supabaseに保存
-        console.log(`[useStreamWithSupabase] スコア保存開始: ${data.scored.length}件`);
-        const scorePromises: Promise<void>[] = [];
         setScores(prev => {
           const next = new Map(prev);
           for (const item of data.scored) {
             const id = item.id;
+            const prevScore = prev.get(id);
+            // 既にisImportantだった場合、または今回importantに含まれている場合はtrue
+            const isImportant = (prevScore?.isImportant ?? false) || importantIds.has(id);
             const score: Score = {
               utteranceId: id,
               score: item.score,
               pValue: item.p,
               rank: item.rank,
-              isImportant: false,
+              isImportant: isImportant,
               detail: item.detail,
             };
             next.set(id, score);
 
-            // Supabaseに保存
-            console.log(
-              `[useStreamWithSupabase] スコア保存: ID=${id}, score=${score.score}, p=${score.pValue}`
-            );
-            scorePromises.push(saveScore(sessionId, id, score));
+            // 保存用リストに追加
+            scoresToSave.push({ utteranceId: id, score });
           }
           return next;
         });
+
+        // スコアを一括保存（高速化）
+        const batchScorePromise = saveBatchScoresAction(sessionId, scoresToSave);
+
+        // 依存関係保存のPromiseを準備
+        let dependenciesPromise: Promise<void> | null = null;
 
         // 重要発言リスト更新
         if (data.important.length > 0) {
@@ -303,9 +312,6 @@ export const useStreamWithSupabase = (
               detail: item.detail,
             };
 
-            // 重要発言のスコアもSupabaseに保存（上書き）
-            scorePromises.push(saveScore(sessionId, id, score));
-
             return {
               utterance: utt,
               score,
@@ -315,17 +321,16 @@ export const useStreamWithSupabase = (
 
           setImportantList(prev => [...prev, ...newImportant]);
 
-          // スコアマップの isImportant フラグも更新
-          setScores(prev => {
-            const next = new Map(prev);
-            for (const imp of newImportant) {
-              const existing = next.get(imp.utterance.id);
-              if (existing) {
-                next.set(imp.utterance.id, { ...existing, isImportant: true });
-              }
-            }
-            return next;
-          });
+          // 依存関係エッジを追加（現在の発話が重要発話に依存）
+          const currentId = current.id;
+          const newEdges: DependencyEdge[] = data.important.map(item => ({
+            from: item.id,
+            to: currentId,
+          }));
+          setDependencies(prev => [...prev, ...newEdges]);
+
+          // 依存関係をSupabaseに保存（並列実行のために準備）
+          dependenciesPromise = saveDependenciesAction(sessionId, newEdges);
 
           // コールバック呼び出し（最新の重要発言のみ）
           if (onImportantDetectedRef.current && newImportant.length > 0) {
@@ -333,14 +338,22 @@ export const useStreamWithSupabase = (
           }
         }
 
-        // 全てのスコア保存を待つ
-        try {
-          await Promise.all(scorePromises);
-          console.log(`[useStreamWithSupabase] スコア保存完了: ${scorePromises.length}件`);
-        } catch (saveError) {
-          console.error('[useStreamWithSupabase] スコア保存エラー:', saveError);
-          // スコア保存エラーは致命的ではないので、処理は継続
+        // スコア保存と依存関係保存を並列実行
+        const saveOperations: Promise<unknown>[] = [batchScorePromise];
+        if (dependenciesPromise) {
+          saveOperations.push(dependenciesPromise);
         }
+
+        // 全ての保存操作を並列実行（エラーがあっても継続）
+        const results = await Promise.allSettled(saveOperations);
+
+        // エラーログ出力
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const operationType = index === 0 ? 'スコア保存' : '依存関係保存';
+            console.error(`[useStreamWithSupabase] ${operationType}エラー:`, result.reason);
+          }
+        });
 
         setAnchorCount(data.anchorCount);
       } catch (err) {
@@ -360,6 +373,7 @@ export const useStreamWithSupabase = (
     dialogue,
     scores,
     importantList,
+    dependencies,
     addUtterance,
     isAnalyzing,
     error,

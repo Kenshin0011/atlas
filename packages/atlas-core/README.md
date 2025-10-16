@@ -205,7 +205,6 @@ type AnalyzerOptions = {
   halfLifeTurns?: number;    // 半減期ターン数 (default: 20)
   nullSamples?: number;      // 帰無サンプル数 (default: 8)
   fdrAlpha?: number;         // FDR閾値 (default: 0.1)
-  minTokensForSingle?: number; // 短文統合閾値 (default: 5)
   mmrLambda?: number;        // MMR重要度重視度 (default: 0.7)
 };
 ```

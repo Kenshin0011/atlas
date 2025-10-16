@@ -1,8 +1,8 @@
-# Supabase Setup for CTIDE
+# Supabase Setup
 
 ## 概要
 
-CTIDE Assistant は Supabase を使用して以下を実現します:
+Assistant は Supabase を使用して以下を実現します:
 
 - ✅ ユーザー名ベースの認証（メールアドレス不要）
 - ✅ ブース単位での会話セッション管理
@@ -246,7 +246,7 @@ channel.unsubscribe();
 ### リアルタイム同期が動かない
 
 1. Supabase Dashboard > Database > Replication を確認
-2. `utterances` と `ctide_scores` テーブルが Replication 対象になっているか確認
+2. `utterances` と `scores` テーブルが Replication 対象になっているか確認
 3. マイグレーション最後の `ALTER PUBLICATION` が実行されているか確認
 
 ## 8. セキュリティ設定

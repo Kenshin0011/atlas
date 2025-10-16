@@ -6,14 +6,29 @@
 'use client';
 
 import type { Utterance } from '@atlas/core';
-import type { Score } from '../hooks/useStream';
+import { useMemo } from 'react';
+import type { DependencyEdge, Score } from '../hooks/useStream';
 
 type DebugConversationViewProps = {
   dialogue: Utterance[];
   scores: Map<number, Score>;
+  dependencies?: DependencyEdge[];
 };
 
-export const DebugConversationView = ({ dialogue, scores }: DebugConversationViewProps) => {
+export const DebugConversationView = ({
+  dialogue,
+  scores,
+  dependencies = [],
+}: DebugConversationViewProps) => {
+  // アンカー（他から依存されている）のIDセット
+  const anchorIds = useMemo(() => {
+    return new Set(dependencies.map(d => d.from));
+  }, [dependencies]);
+
+  // 依存している発話のIDセット
+  const dependentIds = useMemo(() => {
+    return new Set(dependencies.map(d => d.to));
+  }, [dependencies]);
   if (dialogue.length === 0) {
     return (
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6">
@@ -44,20 +59,25 @@ export const DebugConversationView = ({ dialogue, scores }: DebugConversationVie
           const score = scores.get(utt.id);
           const hasScore = score !== undefined;
           const isImportant = score?.isImportant || false;
+          const isAnchor = anchorIds.has(utt.id);
+          const isDependent = dependentIds.has(utt.id);
 
           // スコアの相対的な強度（0-100%）
           const scoreIntensity = hasScore ? ((score.score - minScore) / scoreRange) * 100 : 0;
 
+          // 色分け: アンカー = オレンジ、依存発話（アンカーでない）= 緑、スコアあり = 青、なし = グレー
+          const colorClasses = isAnchor
+            ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+            : isDependent
+              ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+              : hasScore
+                ? 'border-blue-400 bg-blue-50/50 dark:bg-blue-900/10'
+                : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/30';
+
           return (
             <div
               key={utt.id}
-              className={`p-3 rounded-lg border-l-4 transition-all ${
-                isImportant
-                  ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                  : hasScore
-                    ? 'border-blue-400 bg-blue-50/50 dark:bg-blue-900/10'
-                    : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/30'
-              }`}
+              className={`p-3 rounded-lg border-l-4 transition-all ${colorClasses}`}
             >
               <div className="flex items-start justify-between gap-3">
                 {/* 左側：発話内容 */}
@@ -112,9 +132,11 @@ export const DebugConversationView = ({ dialogue, scores }: DebugConversationVie
                 <div className="mt-2 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                   <div
                     className={`h-full transition-all ${
-                      isImportant
-                        ? 'bg-gradient-to-r from-green-400 to-green-600'
-                        : 'bg-gradient-to-r from-blue-400 to-blue-600'
+                      isAnchor
+                        ? 'bg-gradient-to-r from-orange-400 to-orange-600'
+                        : isDependent
+                          ? 'bg-gradient-to-r from-green-400 to-green-600'
+                          : 'bg-gradient-to-r from-blue-400 to-blue-600'
                     }`}
                     style={{ width: `${Math.max(scoreIntensity, 5)}%` }}
                   />

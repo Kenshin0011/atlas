@@ -4,7 +4,7 @@
  */
 
 import type { Utterance } from '@atlas/core';
-import type { Score } from '@/features/hooks/useStream';
+import type { DependencyEdge, Score } from '@/features/hooks/useStream';
 import { supabase } from './client';
 import { emailToUsername } from './username';
 
@@ -30,7 +30,6 @@ export type SessionInfo = {
  * 新しいセッションを作成
  */
 export const createSession = async (boothInfo?: BoothInfo): Promise<string> => {
-  // 現在のユーザーを取得
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -56,20 +55,18 @@ export const createSession = async (boothInfo?: BoothInfo): Promise<string> => {
 /**
  * 発話を保存
  */
-export const saveUtterance = async (sessionId: string, utterance: Utterance): Promise<number> => {
-  // 現在のユーザーを取得
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const username = user?.email ? emailToUsername(user.email) : null;
-
+export const saveUtterance = async (
+  sessionId: string,
+  utterance: Utterance,
+  userId?: string | null,
+  username?: string | null
+): Promise<number> => {
   const { data, error } = await supabase
     .from('utterances')
     .insert({
       session_id: sessionId,
-      user_id: user?.id || null,
-      username: username,
+      user_id: userId || null,
+      username: username || null,
       speaker: utterance.speaker,
       text: utterance.text,
       timestamp: utterance.timestamp,
@@ -89,18 +86,64 @@ export const saveScore = async (
   utteranceId: number,
   score: Score
 ): Promise<void> => {
-  const { error } = await supabase.from('ctide_scores').insert({
-    session_id: sessionId,
-    utterance_id: utteranceId,
-    score: score as never,
-  });
+  // 既存のスコアを確認
+  const { data: existing } = await supabase
+    .from('scores')
+    .select('score')
+    .eq('session_id', sessionId)
+    .eq('utterance_id', utteranceId)
+    .single();
 
-  if (error) {
-    console.error('[saveScore] エラー:', {
-      sessionId,
-      utteranceId,
-      error,
+  const existingScore = existing?.score as Score | null;
+  const existingIsImportant = existingScore?.isImportant || false;
+
+  const scoreData = {
+    ...score,
+    // 既存のisImportantがtrueなら保持
+    isImportant: existingIsImportant || score.isImportant,
+  };
+
+  if (existing) {
+    // 更新
+    const { error } = await supabase
+      .from('scores')
+      .update({ score: scoreData as never })
+      .eq('session_id', sessionId)
+      .eq('utterance_id', utteranceId);
+
+    if (error) throw error;
+  } else {
+    // 挿入
+    const { error } = await supabase.from('scores').insert({
+      session_id: sessionId,
+      utterance_id: utteranceId,
+      score: scoreData as never,
     });
+
+    if (error) throw error;
+  }
+};
+
+/**
+ * 依存関係を保存
+ */
+export const saveDependencies = async (
+  sessionId: string,
+  dependencies: Array<{ from: number; to: number }>
+): Promise<void> => {
+  if (dependencies.length === 0) return;
+
+  const rows = dependencies.map(dep => ({
+    session_id: sessionId,
+    from_utterance_id: dep.from,
+    to_utterance_id: dep.to,
+  }));
+
+  const { error } = await supabase.from('dependencies').insert(rows);
+
+  // UNIQUE制約違反（重複）は無視
+  if (error && error.code !== '23505') {
+    console.error('[saveDependencies] エラー:', error);
     throw error;
   }
 };
@@ -119,7 +162,7 @@ export const getSessionInfo = async (sessionId: string): Promise<SessionInfo> =>
 
   return {
     id: data.id,
-    createdAt: data.created_at,
+    createdAt: data.created_at || new Date().toISOString(),
     userId: data.user_id,
     username: data.username,
     boothName: data.notes || undefined,
@@ -154,7 +197,7 @@ export const getSessionUtterances = async (sessionId: string): Promise<Utterance
  */
 export const getSessionScores = async (sessionId: string): Promise<Map<number, Score>> => {
   const { data, error } = await supabase
-    .from('ctide_scores')
+    .from('scores')
     .select('utterance_id, score')
     .eq('session_id', sessionId);
 
@@ -166,6 +209,23 @@ export const getSessionScores = async (sessionId: string): Promise<Map<number, S
   }
 
   return scoreMap;
+};
+
+/**
+ * セッションの依存関係を取得
+ */
+export const getSessionDependencies = async (sessionId: string): Promise<DependencyEdge[]> => {
+  const { data, error } = await supabase
+    .from('dependencies')
+    .select('from_utterance_id, to_utterance_id')
+    .eq('session_id', sessionId);
+
+  if (error) throw error;
+
+  return data.map(row => ({
+    from: row.from_utterance_id,
+    to: row.to_utterance_id,
+  }));
 };
 
 /**
@@ -224,70 +284,65 @@ export const subscribeToScores = (
   sessionId: string,
   onScore: (utteranceId: number, score: Score) => void
 ) => {
+  const channel = supabase.channel(`scores:${sessionId}`);
+
+  // INSERT イベント
+  channel.on(
+    'postgres_changes',
+    {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'scores',
+      filter: `session_id=eq.${sessionId}`,
+    },
+    payload => {
+      const row = payload.new;
+      onScore(row.utterance_id as number, row.score as Score);
+    }
+  );
+
+  // UPDATE イベント
+  channel.on(
+    'postgres_changes',
+    {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'scores',
+      filter: `session_id=eq.${sessionId}`,
+    },
+    payload => {
+      const row = payload.new;
+      onScore(row.utterance_id as number, row.score as Score);
+    }
+  );
+
+  return channel.subscribe();
+};
+
+/**
+ * リアルタイム購読：新しい依存関係
+ */
+export const subscribeToDependencies = (
+  sessionId: string,
+  onDependency: (edge: DependencyEdge) => void
+) => {
   return supabase
-    .channel(`scores:${sessionId}`)
+    .channel(`dependencies:${sessionId}`)
     .on(
       'postgres_changes',
       {
         event: 'INSERT',
         schema: 'public',
-        table: 'ctide_scores',
+        table: 'dependencies',
         filter: `session_id=eq.${sessionId}`,
       },
       payload => {
         const row = payload.new;
-        onScore(row.utterance_id as number, row.score as Score);
+        onDependency({
+          from: row.from_utterance_id as number,
+          to: row.to_utterance_id as number,
+        });
       }
     )
     .subscribe();
-};
-
-/**
- * セッションの発話とスコアを削除（履歴リセット）
- */
-export const clearSessionData = async (sessionId: string): Promise<void> => {
-  // スコアを削除
-  const { error: scoresError } = await supabase
-    .from('ctide_scores')
-    .delete()
-    .eq('session_id', sessionId);
-
-  if (scoresError) throw scoresError;
-
-  // 発話を削除
-  const { error: utterancesError } = await supabase
-    .from('utterances')
-    .delete()
-    .eq('session_id', sessionId);
-
-  if (utterancesError) throw utterancesError;
-};
-
-/**
- * セッション自体を削除（セッション + 発話 + スコア）
- */
-export const deleteSession = async (sessionId: string): Promise<void> => {
-  // カスケード削除が有効な場合はセッション削除だけでOK
-  // 明示的に削除する場合は以下の順序で削除
-
-  // 1. スコアを削除
-  const { error: scoresError } = await supabase
-    .from('ctide_scores')
-    .delete()
-    .eq('session_id', sessionId);
-
-  if (scoresError) throw scoresError;
-
-  // 2. 発話を削除
-  const { error: utterancesError } = await supabase
-    .from('utterances')
-    .delete()
-    .eq('session_id', sessionId);
-
-  if (utterancesError) throw utterancesError;
-
-  // 3. セッションを削除
-  const { error: sessionError } = await supabase.from('sessions').delete().eq('id', sessionId);
-
-  if (sessionError) throw sessionError;
 };

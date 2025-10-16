@@ -7,6 +7,7 @@
 
 import { defaultOptions, type Utterance } from '@atlas/core';
 import { useCallback, useRef, useState } from 'react';
+import { analyzeConversationAction } from '@/app/actions/analysis';
 
 export type Score = {
   utteranceId: number;
@@ -30,6 +31,11 @@ export type ImportantUtterance = {
   timestamp: number;
 };
 
+export type DependencyEdge = {
+  from: number; // 依存元（重要発話ID）
+  to: number; // 依存先（発話ID）
+};
+
 export type UseStreamReturn = {
   // 会話履歴
   dialogue: Utterance[];
@@ -37,6 +43,8 @@ export type UseStreamReturn = {
   scores: Map<number, Score>;
   // 重要発言リスト（時系列順）
   importantList: ImportantUtterance[];
+  // 依存関係エッジ
+  dependencies: DependencyEdge[];
   // 発話を追加
   addUtterance: (utterance: Utterance) => Promise<void>;
   // クリア
@@ -69,6 +77,7 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
   const [dialogue, setDialogue] = useState<Utterance[]>([]);
   const [scores, setScores] = useState<Map<number, Score>>(new Map());
   const [importantList, setImportantList] = useState<ImportantUtterance[]>([]);
+  const [dependencies, setDependencies] = useState<DependencyEdge[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [anchorCount, setAnchorCount] = useState(0);
@@ -93,46 +102,14 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
         const history = updatedDialogue.slice(0, -1);
         const current = utterance;
 
-        const response = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            history,
-            current,
-            options: {
-              k: analysisOptions.k ?? defaultOptions.k,
-              alphaMix: analysisOptions.alphaMix ?? defaultOptions.alphaMix,
-              halfLifeTurns: analysisOptions.halfLifeTurns ?? defaultOptions.halfLifeTurns,
-              nullSamples: analysisOptions.nullSamples ?? defaultOptions.nullSamples,
-              fdrAlpha: analysisOptions.fdrAlpha ?? defaultOptions.fdrAlpha,
-              mmrLambda: analysisOptions.mmrLambda ?? defaultOptions.mmrLambda,
-            },
-          }),
+        const data = await analyzeConversationAction(history, current, {
+          k: analysisOptions.k ?? defaultOptions.k,
+          alphaMix: analysisOptions.alphaMix ?? defaultOptions.alphaMix,
+          halfLifeTurns: analysisOptions.halfLifeTurns ?? defaultOptions.halfLifeTurns,
+          nullSamples: analysisOptions.nullSamples ?? defaultOptions.nullSamples,
+          fdrAlpha: analysisOptions.fdrAlpha ?? defaultOptions.fdrAlpha,
+          mmrLambda: analysisOptions.mmrLambda ?? defaultOptions.mmrLambda,
         });
-
-        if (!response.ok) {
-          throw new Error(`Analysis API error: ${response.statusText}`);
-        }
-
-        const data: {
-          important: Array<{
-            id: number;
-            text: string;
-            score: number;
-            rank: number;
-            p?: number;
-            detail: Score['detail'];
-          }>;
-          scored: Array<{
-            id: number;
-            text: string;
-            score: number;
-            rank: number;
-            p?: number;
-            detail: Score['detail'];
-          }>;
-          anchorCount: number;
-        } = await response.json();
 
         // スコアマップ更新
         setScores(prev => {
@@ -186,6 +163,14 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
             return next;
           });
 
+          // 依存関係エッジを追加（現在の発話が重要発話に依存）
+          const currentId = utterance.id;
+          const newEdges: DependencyEdge[] = data.important.map(item => ({
+            from: item.id,
+            to: currentId,
+          }));
+          setDependencies(prev => [...prev, ...newEdges]);
+
           // コールバック呼び出し（最新の重要発言のみ）
           if (onImportantDetectedRef.current && newImportant.length > 0) {
             onImportantDetectedRef.current(newImportant[0]);
@@ -208,6 +193,7 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
     setDialogue([]);
     setScores(new Map());
     setImportantList([]);
+    setDependencies([]);
     setError(null);
     setAnchorCount(0);
   }, []);
@@ -216,6 +202,7 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
     dialogue,
     scores,
     importantList,
+    dependencies,
     addUtterance,
     clear,
     isAnalyzing,
