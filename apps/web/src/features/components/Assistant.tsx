@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useCallback, useMemo, useState } from 'react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useAuth } from '@/hooks/useAuth';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { emailToUsername } from '@/lib/supabase/username';
 import { useStreamWithSupabase } from '../hooks/useStreamWithSupabase';
@@ -34,22 +35,14 @@ export const Assistant = ({ boothId }: AssistantProps) => {
   }, [user?.email]);
 
   // Stream Hook with Supabase (既存セッションを読み込む)
-  const {
-    sessionId,
-    sessionInfo,
-    dialogue,
-    scores,
-    importantList,
-    addUtterance,
-    isAnalyzing,
-    anchorCount,
-  } = useStreamWithSupabase({
-    sessionId: boothId,
-    onImportantDetected: important => {
-      console.log('🟢 重要発言検出:', important);
-      // ここで通知などを追加可能
-    },
-  });
+  const { sessionId, sessionInfo, dialogue, scores, dependencies, addUtterance, isAnalyzing } =
+    useStreamWithSupabase({
+      sessionId: boothId,
+      onImportantDetected: important => {
+        console.log('🟢 重要発言検出:', important);
+        // ここで通知などを追加可能
+      },
+    });
 
   // 音声認識コールバック
   const handleTranscript = useCallback(
@@ -79,9 +72,8 @@ export const Assistant = ({ boothId }: AssistantProps) => {
     },
   });
 
-  // テキスト入力による発話追加
-  const handleTextSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // テキスト入力による発話追加（本体）
+  const submitText = useCallback(() => {
     if (!speakerName || !textInput.trim()) return;
 
     const newUtterance: Utterance = {
@@ -93,7 +85,18 @@ export const Assistant = ({ boothId }: AssistantProps) => {
 
     addUtterance(newUtterance);
     setTextInput('');
+  }, [speakerName, textInput, dialogue.length, addUtterance]);
+
+  // フォーム送信ハンドラー
+  const handleTextSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitText();
   };
+
+  // キーボードショートカット（Cmd+Enter / Ctrl+Enter で送信）
+  const { handleKeyDown } = useKeyboardShortcut({
+    onSubmit: submitText,
+  });
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900">
@@ -248,38 +251,55 @@ export const Assistant = ({ boothId }: AssistantProps) => {
 
       {/* メインコンテンツ */}
       <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 gap-6">
+        <div className="flex flex-col gap-6">
           {/* テキスト入力フォーム（テキストモードのみ） */}
           {inputMode === 'text' && (
             <form
               onSubmit={handleTextSubmit}
               className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4"
             >
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={textInput}
-                  onChange={e => setTextInput(e.target.value)}
-                  placeholder="発話内容を入力..."
-                  className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={!speakerName}
-                />
-                <button
-                  type="submit"
-                  disabled={!speakerName || !textInput.trim()}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-                >
-                  送信
-                </button>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={textInput}
+                    onChange={e => setTextInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="発話内容を入力..."
+                    className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={!speakerName}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!speakerName || !textInput.trim()}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                  >
+                    送信
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  ⌘+Enter (Mac) / Ctrl+Enter (Windows) で送信
+                </p>
               </div>
             </form>
           )}
 
-          {/* 重要発言サマリー */}
-          <ImportantHighlights importantList={importantList} anchorCount={anchorCount} />
+          {/* 左右分割レイアウト */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {/* 左側：重要発言チェイン */}
+            <div className="order-1 lg:order-1">
+              <ImportantHighlights
+                dependencies={dependencies}
+                dialogue={dialogue}
+                scores={scores}
+              />
+            </div>
 
-          {/* 依存関係可視化レイアウト */}
-          <ConversationLayout dialogue={dialogue} scores={scores} isAnalyzing={isAnalyzing} />
+            {/* 右側：現在の発言 */}
+            <div className="order-2 lg:order-2">
+              <ConversationLayout dialogue={dialogue} scores={scores} isAnalyzing={isAnalyzing} />
+            </div>
+          </div>
         </div>
       </main>
 

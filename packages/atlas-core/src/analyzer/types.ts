@@ -19,8 +19,6 @@ export type AnalyzerOptions = {
   nullSamples?: number;
   /** BHのFDR閾値 */
   fdrAlpha?: number;
-  /** 短文統合の閾値（トークン数相当、ざっくり） */
-  minTokensForSingle?: number;
   /** 多様化強度 (0..1) */
   mmrLambda?: number;
 };
@@ -34,6 +32,5 @@ export const defaultOptions: Required<AnalyzerOptions> = {
   halfLifeTurns: 20,
   nullSamples: 20,
   fdrAlpha: 0.1,
-  minTokensForSingle: 5,
   mmrLambda: 0.7,
 };
