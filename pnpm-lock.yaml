@@ -29,9 +29,6 @@ importers:
       '@atlas/core':
         specifier: workspace:*
         version: link:../../packages/atlas-core
-      '@atlas/ui':
-        specifier: workspace:*
-        version: link:../../packages/atlas-ui
       '@supabase/supabase-js':
         specifier: 2.75.0
         version: 2.75.0
@@ -77,28 +74,6 @@ importers:
       '@atlas/tsconfig':
         specifier: workspace:*
         version: link:../configs/tsconfig
-
-  packages/atlas-ui:
-    dependencies:
-      '@atlas/core':
-        specifier: workspace:*
-        version: link:../atlas-core
-      react:
-        specifier: ^19.0.0
-        version: 19.1.0
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.1.0(react@19.1.0)
-    devDependencies:
-      '@atlas/tailwind':
-        specifier: workspace:*
-        version: link:../configs/tailwind
-      '@atlas/tsconfig':
-        specifier: workspace:*
-        version: link:../configs/tsconfig
-      '@atlas/vite':
-        specifier: workspace:*
-        version: link:../configs/vite
 
   packages/configs/tailwind:
     dependencies:
