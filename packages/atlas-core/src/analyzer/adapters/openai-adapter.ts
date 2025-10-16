@@ -44,7 +44,36 @@ export class OpenAIAdapter implements ModelAdapter {
       return cached;
     }
 
-    // リトライ付きAPI呼び出し
+    // バッチ取得を使用（配列で呼び出し）
+    const results = await this.embedBatch([text]);
+    return results[0];
+  }
+
+  /**
+   * OpenAI APIから複数の埋め込みを一括取得（キャッシュ付き + リトライ）
+   */
+  async embedBatch(texts: string[]): Promise<number[][]> {
+    // キャッシュチェック
+    const uncachedIndices: number[] = [];
+    const uncachedTexts: string[] = [];
+    const results: number[][] = new Array(texts.length);
+
+    for (let i = 0; i < texts.length; i++) {
+      const cached = this.cache.get(texts[i]);
+      if (cached !== undefined) {
+        results[i] = cached;
+      } else {
+        uncachedIndices.push(i);
+        uncachedTexts.push(texts[i]);
+      }
+    }
+
+    // 全てキャッシュヒットした場合は即座に返す
+    if (uncachedTexts.length === 0) {
+      return results;
+    }
+
+    // リトライ付きバッチAPI呼び出し
     const maxRetries = 3;
     let lastError: Error | undefined;
 
@@ -57,7 +86,7 @@ export class OpenAIAdapter implements ModelAdapter {
             Authorization: `Bearer ${this.apiKey}`,
           },
           body: JSON.stringify({
-            input: text,
+            input: uncachedTexts, // 配列で送信
             model: this.model,
             dimensions: this.embeddingDimension,
           }),
@@ -79,12 +108,16 @@ export class OpenAIAdapter implements ModelAdapter {
         }
 
         const data = await response.json();
-        const embedding = data.data[0].embedding as number[];
+        const embeddings = data.data.map((item: { embedding: number[] }) => item.embedding);
 
-        // Cache
-        this.cache.set(text, embedding);
+        // 結果をキャッシュして配列に格納
+        for (let i = 0; i < uncachedTexts.length; i++) {
+          const embedding = embeddings[i];
+          this.cache.set(uncachedTexts[i], embedding);
+          results[uncachedIndices[i]] = embedding;
+        }
 
-        return embedding;
+        return results;
       } catch (error) {
         lastError = error as Error;
         if (attempt < maxRetries - 1) {
@@ -104,8 +137,8 @@ export class OpenAIAdapter implements ModelAdapter {
    * コサイン類似度から損失を近似
    * 損失が高い = 履歴から現在発話を予測困難
    *
-   * 最適化: 履歴を結合せず、各発話の埋め込みの重み付き平均で計算
-   * → API呼び出しは各発話1回のみ（キャッシュ効果大）
+   * 最適化: バッチAPI呼び出しで全embeddings取得
+   * → 複数のHTTPリクエストを1回に削減
    * 重み付き平均により、最近の発話の影響を大きくして感度を向上
    */
   async lossWithHistory(history: Utterance[], current: Utterance): Promise<number> {
@@ -113,11 +146,12 @@ export class OpenAIAdapter implements ModelAdapter {
       return 1.0; // Maximum loss when no history
     }
 
-    // 各発話の埋め込みを取得（キャッシュから or 1回だけAPI）
-    const [historyVecs, currentVec] = await Promise.all([
-      Promise.all(history.map(h => this.embed(h.text))),
-      this.embed(current.text),
-    ]);
+    // 全てのテキストを一括で取得（バッチAPI）
+    const allTexts = [...history.map(h => h.text), current.text];
+    const allVecs = await this.embedBatch(allTexts);
+
+    const historyVecs = allVecs.slice(0, history.length);
+    const currentVec = allVecs[history.length];
 
     // 時間減衰を考慮した重み付き平均ベクトルを計算（API不要）
     const weights = this.computeTemporalWeights(historyVecs.length);
@@ -134,7 +168,7 @@ export class OpenAIAdapter implements ModelAdapter {
    * 特定の発話を除外した履歴から損失を計算
    * ΔLoss = L(Y|H\{u}) - L(Y|H) で発話uの情報量を測定
    *
-   * 最適化: 重み付き平均から該当発話を除外して再計算（API不要）
+   * 最適化: バッチAPI呼び出しで全embeddings取得
    */
   async maskedLoss(history: Utterance[], current: Utterance, masked: Utterance): Promise<number> {
     // 除外する発話のインデックスを見つける
@@ -149,11 +183,12 @@ export class OpenAIAdapter implements ModelAdapter {
       return 1.0; // Maximum loss when no history
     }
 
-    // 各発話の埋め込みを取得（キャッシュから or 1回だけAPI）
-    const [filteredVecs, currentVec] = await Promise.all([
-      Promise.all(filteredHistory.map(h => this.embed(h.text))),
-      this.embed(current.text),
-    ]);
+    // 全てのテキストを一括で取得（バッチAPI）
+    const allTexts = [...filteredHistory.map(h => h.text), current.text];
+    const allVecs = await this.embedBatch(allTexts);
+
+    const filteredVecs = allVecs.slice(0, filteredHistory.length);
+    const currentVec = allVecs[filteredHistory.length];
 
     // 元の重みを計算し、除外したインデックスを削除
     const originalWeights = this.computeTemporalWeights(history.length);

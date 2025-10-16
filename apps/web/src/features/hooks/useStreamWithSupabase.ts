@@ -8,6 +8,7 @@
 
 import { defaultOptions, type Utterance } from '@atlas/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { analyzeConversationAction } from '@/app/actions/analysis';
 import {
   createSessionAction,
   saveBatchScoresAction,
@@ -84,10 +85,20 @@ export const useStreamWithSupabase = (
   const onImportantDetectedRef = useRef(onImportantDetected);
   onImportantDetectedRef.current = onImportantDetected;
 
+  // ユーザー情報のキャッシュ（毎回取得しないように最適化）
+  const userInfoRef = useRef<{ userId: string | null; username: string | null } | null>(null);
+
   // セッション初期化
   useEffect(() => {
     const initSession = async () => {
       try {
+        // ユーザー情報を1回だけ取得してキャッシュ
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const username = user?.email ? user.email.split('@')[0] : null;
+        userInfoRef.current = { userId: user?.id || null, username };
+
         if (providedSessionId) {
           // 既存セッションを読み込む
           const [info, utterances, scoreMap, deps] = await Promise.all([
@@ -223,14 +234,16 @@ export const useStreamWithSupabase = (
       setError(null);
 
       try {
-        // ユーザー情報を1回だけ取得
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        const username = user?.email ? user.email.split('@')[0] : null;
+        // キャッシュされたユーザー情報を使用（最適化）
+        const userInfo = userInfoRef.current || { userId: null, username: null };
 
         // Supabaseに発話を保存
-        const dbUtteranceId = await saveUtteranceAction(sessionId, utterance, user?.id, username);
+        const dbUtteranceId = await saveUtteranceAction(
+          sessionId,
+          utterance,
+          userInfo.userId,
+          userInfo.username
+        );
 
         // ローカル状態を更新（IDをDB側のものに同期）
         const savedUtterance: Utterance = {
@@ -249,8 +262,6 @@ export const useStreamWithSupabase = (
         // 会話分析（Server Action）
         const history = updatedDialogue.slice(0, -1);
         const current = savedUtterance;
-
-        const { analyzeConversationAction } = await import('@/app/actions/analysis');
 
         const data = await analyzeConversationAction(history, current, {
           k: analysisOptions.k ?? defaultOptions.k,
