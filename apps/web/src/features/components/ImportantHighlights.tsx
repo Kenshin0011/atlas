@@ -23,51 +23,47 @@ export const ImportantHighlights = ({
 }: ImportantHighlightsProps) => {
   // 依存関係を再帰的に辿って、現在の重要発話チェーンを構築
   const importantUtterances = useMemo(() => {
-    // 最新の重要発話を見つける
-    const allImportantIds: number[] = [];
-    for (const [id, score] of scores.entries()) {
-      if (score.isImportant) {
-        allImportantIds.push(id);
-      }
-    }
-    allImportantIds.sort((a, b) => b - a); // 降順（新しい順）
-
-    if (allImportantIds.length === 0) {
+    if (dependencies.length === 0) {
       return [];
     }
 
-    // 最新の重要発話を起点に依存チェーンを構築
-    const latestImportantId = allImportantIds[0];
+    // 最新の分析対象発話（依存関係の最新のto）を見つける
+    const latestTo = Math.max(...dependencies.map(d => d.to));
 
     // 再帰的に依存元を辿る
     const buildDependencyChain = (targetId: number, visited = new Set<number>()): number[] => {
       if (visited.has(targetId)) return []; // 循環参照防止
       visited.add(targetId);
 
-      const chain = [targetId];
+      // このtargetIdに依存している発話（from側）を全て取得
       const dependsOn = dependencies.filter(d => d.to === targetId).map(d => d.from);
 
+      if (dependsOn.length === 0) {
+        return []; // 依存元がない場合は空
+      }
+
+      // 全ての依存元を収集
+      const chain: number[] = [];
       for (const fromId of dependsOn) {
+        chain.push(fromId); // fromを追加
         const subChain = buildDependencyChain(fromId, visited);
-        chain.unshift(...subChain);
+        chain.push(...subChain); // 再帰的に取得した依存元も追加
       }
 
       return chain;
     };
 
-    const chainIds = buildDependencyChain(latestImportantId);
+    // 最新のto（分析対象発話）から依存チェーンを構築
+    const chainIds = buildDependencyChain(latestTo);
     const uniqueIds = [...new Set(chainIds)]; // 重複削除
 
+    // 発話IDでフィルタしてソート
     return dialogue.filter(u => uniqueIds.includes(u.id)).sort((a, b) => a.id - b.id);
-  }, [dialogue, scores, dependencies]);
+  }, [dialogue, dependencies]);
 
-  // アンカー（他から依存されている重要発話）と依存している発話を区別
+  // アンカー（他から依存されている重要発話）
   const anchorIds = useMemo(() => {
     return new Set(dependencies.map(d => d.from));
-  }, [dependencies]);
-
-  const dependentIds = useMemo(() => {
-    return new Set(dependencies.map(d => d.to));
   }, [dependencies]);
 
   const importantCount = importantUtterances.length;
@@ -96,11 +92,12 @@ export const ImportantHighlights = ({
           </div>
         ) : (
           importantUtterances.map((utterance, index) => {
+            const score = scores.get(utterance.id);
+            const isImportantDetected = score?.isImportant || false;
             const isAnchor = anchorIds.has(utterance.id);
-            const isDependent = dependentIds.has(utterance.id);
 
-            // 重要発話として検出されたもの（dependent/to）= オレンジ、依存元（anchor/from）= 緑
-            const colorClasses = isDependent
+            // 重要発話として検出されたもの = オレンジ、依存元（アンカー）のみ = 緑
+            const colorClasses = isImportantDetected
               ? {
                   line: 'bg-orange-400 dark:bg-orange-600',
                   arrow: 'text-orange-400 dark:text-orange-600',
@@ -153,12 +150,12 @@ export const ImportantHighlights = ({
                     <span className="text-xs text-slate-500 dark:text-slate-500">
                       {formatTimeAgo(utterance.timestamp, Date.now())}
                     </span>
-                    {isDependent && (
+                    {isImportantDetected && (
                       <span className={`text-xs px-2 py-0.5 rounded ${colorClasses.badge}`}>
                         重要検出
                       </span>
                     )}
-                    {isAnchor && !isDependent && (
+                    {isAnchor && !isImportantDetected && (
                       <span className={`text-xs px-2 py-0.5 rounded ${colorClasses.badge}`}>
                         依存元
                       </span>
