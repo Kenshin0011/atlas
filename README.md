@@ -291,6 +291,12 @@ MMR(u) = λ · relevance(u, current) - (1 - λ) · max_similarity(u, selected)
 | `fdrAlpha` | 0.1 | FDR閾値 |
 | `mmrLambda` | 0.7 | MMR関連性重視度 |
 
+### 📚 詳細ドキュメント
+
+アルゴリズムの詳細な解説（実装コード、具体的な会話例、ステップバイステップの計算）は以下を参照してください：
+
+**[`packages/atlas-core/README.md`](packages/atlas-core/README.md)**
+
 ---
 
 ## 🎨 UI設計
@@ -407,9 +413,8 @@ ATLASの主な技術的革新：
 
 - **原因**: RLSポリシーまたは環境変数の問題
 - **対策**:
-  1. `002_fix_rls_policies.sql`を実行
-  2. `SUPABASE_SERVICE_ROLE_KEY`が設定されているか確認
-  3. Supabaseダッシュボードでテーブルが作成されているか確認
+  1. `SUPABASE_SERVICE_ROLE_KEY`が設定されているか確認
+  2. Supabaseダッシュボードでテーブルが作成されているか確認
 
 ---
 
