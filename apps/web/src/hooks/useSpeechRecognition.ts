@@ -79,10 +79,6 @@ export const useSpeechRecognition = ({
       onError?.(errorMessage);
     };
 
-    recognition.onstart = () => {
-      // 音声認識開始
-    };
-
     recognition.onend = () => {
       // Auto-restart if still supposed to be listening
       if (isListeningRef.current) {
