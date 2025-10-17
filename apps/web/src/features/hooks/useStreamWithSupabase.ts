@@ -85,6 +85,9 @@ export const useStreamWithSupabase = (
   const onImportantDetectedRef = useRef(onImportantDetected);
   onImportantDetectedRef.current = onImportantDetected;
 
+  // 発話処理中フラグ（並列実行を防ぐ）
+  const isProcessingRef = useRef(false);
+
   // ユーザー情報のキャッシュ（毎回取得しないように最適化）
   const userInfoRef = useRef<{ userId: string | null; username: string | null } | null>(null);
 
@@ -138,7 +141,6 @@ export const useStreamWithSupabase = (
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Session initialization error';
         setError(message);
-        console.error('セッション初期化エラー:', err);
       }
     };
 
@@ -161,9 +163,18 @@ export const useStreamWithSupabase = (
     const utteranceChannel = subscribeToUtterances(
       sessionId,
       utterance => {
-        // 重複チェック（既に存在するIDは追加しない）
+        // 重複チェック（既に存在するIDまたはテキストは追加しない）
         setDialogue(prev => {
+          // IDでの重複チェック
           if (prev.some(u => u.id === utterance.id)) {
+            return prev;
+          }
+          // テキストとタイムスタンプでの重複チェック（一時IDとDB IDの重複を防ぐ）
+          if (
+            prev.some(
+              u => u.text === utterance.text && Math.abs(u.timestamp - utterance.timestamp) < 1000 // 1秒以内
+            )
+          ) {
             return prev;
           }
           return [...prev, utterance];
@@ -226,18 +237,28 @@ export const useStreamWithSupabase = (
 
       // 空の発話は無視
       if (!utterance.text || utterance.text.trim() === '') {
-        console.warn('Empty utterance ignored:', utterance);
         return;
       }
 
+      // 並列実行を防ぐ（前の処理が完了するまで待つ）
+      if (isProcessingRef.current) {
+        return;
+      }
+
+      isProcessingRef.current = true;
       setIsAnalyzing(true);
       setError(null);
 
       try {
-        // キャッシュされたユーザー情報を使用（最適化）
-        const userInfo = userInfoRef.current || { userId: null, username: null };
+        // 楽観的更新：即座にUIに反映（一時IDで）
+        let updatedDialogue: Utterance[] = [];
+        setDialogue(prev => {
+          updatedDialogue = [...prev, utterance];
+          return updatedDialogue;
+        });
 
-        // Supabaseに発話を保存
+        // バックグラウンドでSupabaseに発話を保存
+        const userInfo = userInfoRef.current || { userId: null, username: null };
         const dbUtteranceId = await saveUtteranceAction(
           sessionId,
           utterance,
@@ -245,17 +266,23 @@ export const useStreamWithSupabase = (
           userInfo.username
         );
 
-        // ローカル状態を更新（IDをDB側のものに同期）
+        // IDをDB側のものに同期（既存のutteranceを更新）
         const savedUtterance: Utterance = {
           ...utterance,
           id: dbUtteranceId,
         };
-        const updatedDialogue = [...dialogue, savedUtterance];
-        setDialogue(updatedDialogue);
+
+        setDialogue(prev => {
+          // 一時IDの発話をDB IDに置き換え
+          const updated = prev.map(u => (u.id === utterance.id ? savedUtterance : u));
+          updatedDialogue = updated;
+          return updated;
+        });
 
         // 最低2発言以上ないと分析できない
         if (updatedDialogue.length < 2) {
           setIsAnalyzing(false);
+          isProcessingRef.current = false;
           return;
         }
 
@@ -356,26 +383,18 @@ export const useStreamWithSupabase = (
         }
 
         // 全ての保存操作を並列実行（エラーがあっても継続）
-        const results = await Promise.allSettled(saveOperations);
-
-        // エラーログ出力
-        results.forEach((result, index) => {
-          if (result.status === 'rejected') {
-            const operationType = index === 0 ? 'スコア保存' : '依存関係保存';
-            console.error(`[useStreamWithSupabase] ${operationType}エラー:`, result.reason);
-          }
-        });
+        await Promise.allSettled(saveOperations);
 
         setAnchorCount(data.anchorCount);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         setError(message);
-        console.error('分析エラー:', err);
       } finally {
         setIsAnalyzing(false);
+        isProcessingRef.current = false;
       }
     },
-    [dialogue, sessionId, analysisOptions]
+    [sessionId, analysisOptions]
   );
 
   return {

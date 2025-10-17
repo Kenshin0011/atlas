@@ -38,9 +38,8 @@ export const Assistant = ({ boothId }: AssistantProps) => {
   const { sessionId, sessionInfo, dialogue, scores, dependencies, addUtterance, isAnalyzing } =
     useStreamWithSupabase({
       sessionId: boothId,
-      onImportantDetected: important => {
-        console.log('🟢 重要発言検出:', important);
-        // ここで通知などを追加可能
+      onImportantDetected: () => {
+        // 重要発言検出時の処理（必要に応じて通知などを追加）
       },
     });
 
@@ -52,8 +51,9 @@ export const Assistant = ({ boothId }: AssistantProps) => {
         return;
       }
 
+      // IDは一時的なもの（DB保存後に正しいIDに置き換わる）
       const newUtterance: Utterance = {
-        id: dialogue.length,
+        id: Date.now(),
         speaker: speakerName,
         text: transcript.trim(),
         timestamp: Date.now(),
@@ -61,14 +61,14 @@ export const Assistant = ({ boothId }: AssistantProps) => {
 
       addUtterance(newUtterance);
     },
-    [dialogue.length, speakerName, addUtterance]
+    [speakerName, addUtterance]
   );
 
   // 音声認識
   const { isListening, startListening, stopListening, isSupported } = useSpeechRecognition({
     onTranscript: handleTranscript,
-    onError: error => {
-      console.error('音声認識エラー:', error);
+    onError: () => {
+      // 音声認識エラー
     },
   });
 
@@ -76,8 +76,9 @@ export const Assistant = ({ boothId }: AssistantProps) => {
   const submitText = useCallback(() => {
     if (!speakerName || !textInput.trim()) return;
 
+    // IDは一時的なもの（DB保存後に正しいIDに置き換わる）
     const newUtterance: Utterance = {
-      id: dialogue.length,
+      id: Date.now(),
       speaker: speakerName,
       text: textInput.trim(),
       timestamp: Date.now(),
@@ -85,7 +86,7 @@ export const Assistant = ({ boothId }: AssistantProps) => {
 
     addUtterance(newUtterance);
     setTextInput('');
-  }, [speakerName, textInput, dialogue.length, addUtterance]);
+  }, [speakerName, textInput, addUtterance]);
 
   // フォーム送信ハンドラー
   const handleTextSubmit = (e: React.FormEvent) => {

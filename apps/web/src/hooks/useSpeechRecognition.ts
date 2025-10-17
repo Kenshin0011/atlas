@@ -55,18 +55,22 @@ export const useSpeechRecognition = ({
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const last = event.results.length - 1;
-      const transcript = event.results[last][0].transcript;
-      const isFinal = event.results[last].isFinal;
+      // 新しく追加された結果のみを処理（連続発話に対応）
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        const isFinal = event.results[i].isFinal;
 
-      onTranscript(transcript, isFinal);
+        // 空文字列やホワイトスペースのみの発話は完全に無視
+        if (!transcript || !transcript.trim()) {
+          continue;
+        }
+
+        onTranscript(transcript, isFinal);
+      }
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error('音声認識エラー:', event.error);
-
       if (event.error === 'no-speech') {
-        console.log('音声が検出されませんでした');
         return;
       }
 
@@ -75,13 +79,17 @@ export const useSpeechRecognition = ({
       onError?.(errorMessage);
     };
 
+    recognition.onstart = () => {
+      // 音声認識開始
+    };
+
     recognition.onend = () => {
       // Auto-restart if still supposed to be listening
       if (isListeningRef.current) {
         try {
           recognition.start();
-        } catch (err) {
-          console.error('音声認識の再起動に失敗:', err);
+        } catch {
+          // Restart failed
         }
       }
     };
@@ -110,8 +118,6 @@ export const useSpeechRecognition = ({
         setError(null);
       }
     } catch (err) {
-      console.error('音声認識の開始に失敗:', err);
-
       // Handle "already started" error
       if (err instanceof Error && err.message?.includes('already started')) {
         setIsListening(true);
@@ -124,9 +130,10 @@ export const useSpeechRecognition = ({
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsListening(false);
+      // フラグを先にfalseにしてから停止（onendでの自動再起動を防ぐ）
       isListeningRef.current = false;
+      setIsListening(false);
+      recognitionRef.current.stop();
     }
   }, []);
 
