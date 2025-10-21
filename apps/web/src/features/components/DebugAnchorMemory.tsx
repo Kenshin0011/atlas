@@ -13,11 +13,6 @@ type DebugAnchorMemoryProps = {
 };
 
 export const DebugAnchorMemory = ({ importantList, anchorCount }: DebugAnchorMemoryProps) => {
-  // スコア別に分類
-  const critical = importantList.filter(i => i.score.score > 1.5);
-  const high = importantList.filter(i => i.score.score > 1.0 && i.score.score <= 1.5);
-  const medium = importantList.filter(i => i.score.score <= 1.0);
-
   // 平均スコア計算
   const avgScore =
     importantList.length > 0
@@ -62,80 +57,6 @@ export const DebugAnchorMemory = ({ importantList, anchorCount }: DebugAnchorMem
           </div>
           <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
             {significantCount}
-          </div>
-        </div>
-      </div>
-
-      {/* レベル別分布 */}
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-          重要度レベル分布
-        </h3>
-        <div className="space-y-2">
-          {/* Critical */}
-          <div className="flex items-center gap-3">
-            <div className="w-20 text-xs text-slate-600 dark:text-slate-400">Critical</div>
-            <div className="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-6 overflow-hidden">
-              <div
-                className="bg-red-500 h-full flex items-center justify-center text-xs font-bold text-white"
-                style={{
-                  width: `${importantList.length > 0 ? (critical.length / importantList.length) * 100 : 0}%`,
-                }}
-              >
-                {critical.length > 0 && <span>{critical.length}</span>}
-              </div>
-            </div>
-            <div className="w-16 text-xs text-right text-slate-600 dark:text-slate-400">
-              {critical.length} (
-              {importantList.length > 0
-                ? ((critical.length / importantList.length) * 100).toFixed(1)
-                : 0}
-              %)
-            </div>
-          </div>
-
-          {/* High */}
-          <div className="flex items-center gap-3">
-            <div className="w-20 text-xs text-slate-600 dark:text-slate-400">High</div>
-            <div className="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-6 overflow-hidden">
-              <div
-                className="bg-orange-500 h-full flex items-center justify-center text-xs font-bold text-white"
-                style={{
-                  width: `${importantList.length > 0 ? (high.length / importantList.length) * 100 : 0}%`,
-                }}
-              >
-                {high.length > 0 && <span>{high.length}</span>}
-              </div>
-            </div>
-            <div className="w-16 text-xs text-right text-slate-600 dark:text-slate-400">
-              {high.length} (
-              {importantList.length > 0
-                ? ((high.length / importantList.length) * 100).toFixed(1)
-                : 0}
-              %)
-            </div>
-          </div>
-
-          {/* Medium */}
-          <div className="flex items-center gap-3">
-            <div className="w-20 text-xs text-slate-600 dark:text-slate-400">Medium</div>
-            <div className="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-6 overflow-hidden">
-              <div
-                className="bg-green-500 h-full flex items-center justify-center text-xs font-bold text-white"
-                style={{
-                  width: `${importantList.length > 0 ? (medium.length / importantList.length) * 100 : 0}%`,
-                }}
-              >
-                {medium.length > 0 && <span>{medium.length}</span>}
-              </div>
-            </div>
-            <div className="w-16 text-xs text-right text-slate-600 dark:text-slate-400">
-              {medium.length} (
-              {importantList.length > 0
-                ? ((medium.length / importantList.length) * 100).toFixed(1)
-                : 0}
-              %)
-            </div>
           </div>
         </div>
       </div>
