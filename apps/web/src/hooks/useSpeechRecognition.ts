@@ -70,23 +70,38 @@ export const useSpeechRecognition = ({
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      // 'no-speech' エラーは無視（ユーザーが話していないだけ）
       if (event.error === 'no-speech') {
+        return;
+      }
+
+      // 'aborted' エラーは無視（ユーザーが明示的に停止した）
+      if (event.error === 'aborted') {
         return;
       }
 
       const errorMessage = `音声認識エラー: ${event.error}`;
       setError(errorMessage);
+      setIsListening(false);
+      isListeningRef.current = false;
       onError?.(errorMessage);
     };
 
     recognition.onend = () => {
-      // Auto-restart if still supposed to be listening
+      // ユーザーが明示的に停止した場合は再起動しない
+      // continuous モードでも、エラーやブラウザの制限で停止する場合がある
+      // その場合のみ自動再起動を試みる
       if (isListeningRef.current) {
         try {
           recognition.start();
         } catch {
-          // Restart failed
+          // 再起動に失敗した場合は停止状態にする
+          setIsListening(false);
+          isListeningRef.current = false;
         }
+      } else {
+        // 明示的に停止された場合は状態を確実に停止にする
+        setIsListening(false);
       }
     };
 
@@ -129,7 +144,18 @@ export const useSpeechRecognition = ({
       // フラグを先にfalseにしてから停止（onendでの自動再起動を防ぐ）
       isListeningRef.current = false;
       setIsListening(false);
-      recognitionRef.current.stop();
+
+      // abort() で即座に停止（stop() は現在の発話を処理してから停止する）
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // abort が失敗した場合は stop を試みる
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // 停止に失敗しても状態は既に false になっている
+        }
+      }
     }
   }, []);
 

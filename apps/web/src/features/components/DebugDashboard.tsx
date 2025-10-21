@@ -22,6 +22,7 @@ const DebugDashboardContent = () => {
   const searchParams = useSearchParams();
   const sessionIdFromUrl = searchParams.get('session');
   const { user } = useAuth();
+  const [interimTranscript, setInterimTranscript] = useState('');
 
   // ユーザー名を自動的に話者名として使用
   const speakerName = useMemo(() => {
@@ -61,28 +62,51 @@ const DebugDashboardContent = () => {
   // 音声認識コールバック
   const handleTranscript = useCallback(
     (transcript: string, isFinal: boolean) => {
-      if (isFinal && speakerName) {
+      if (!speakerName || !transcript.trim()) {
+        return;
+      }
+
+      // リアルタイムに一文字ごと表示
+      setInterimTranscript(transcript.trim());
+
+      if (isFinal) {
+        // 確定した発話を履歴に追加
         const newUtterance: Utterance = {
           id: dialogue.length,
           speaker: speakerName,
-          text: transcript,
+          text: transcript.trim(),
           timestamp: Date.now(),
         };
 
         console.log('[DEBUG] 📝 新しい発話:', newUtterance);
         addUtterance(newUtterance);
+        // 次の発話のために少し待ってからクリア
+        setTimeout(() => {
+          setInterimTranscript('');
+        }, 500);
       }
     },
     [dialogue.length, speakerName, addUtterance]
   );
 
   // 音声認識
-  const { isListening, startListening, stopListening, isSupported } = useSpeechRecognition({
+  const {
+    isListening,
+    startListening,
+    stopListening: originalStopListening,
+    isSupported,
+  } = useSpeechRecognition({
     onTranscript: handleTranscript,
     onError: error => {
       console.error('[DEBUG] ❌ 音声認識エラー:', error);
     },
   });
+
+  // 停止処理（途中の発話もクリア）
+  const stopListening = useCallback(() => {
+    originalStopListening();
+    setInterimTranscript('');
+  }, [originalStopListening]);
 
   // 手動で発話追加（テスト用）
   const handleManualAdd = () => {
@@ -270,14 +294,23 @@ const DebugDashboardContent = () => {
         </div>
       </main>
 
-      {/* リスニング状態インジケーター */}
+      {/* リスニング状態インジケーター＆リアルタイム文字起こし */}
       {isListening && (
-        <div className="fixed bottom-4 left-4 bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-          <svg className="w-4 h-4 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
-            <title>録音中</title>
-            <circle cx="10" cy="10" r="8" />
-          </svg>
-          <span className="text-sm font-medium">音声認識中...</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-3xl px-4">
+          <div className="bg-purple-600 text-white px-8 py-6 rounded-2xl shadow-2xl">
+            <div className="flex items-center gap-3 mb-3">
+              <svg className="w-6 h-6 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                <title>録音中</title>
+                <circle cx="10" cy="10" r="8" />
+              </svg>
+              <span className="text-base font-bold">音声認識中...</span>
+            </div>
+            <div className="bg-white/20 rounded-xl px-6 py-4 min-h-[60px] flex items-center">
+              <p className="text-white text-xl leading-relaxed font-medium">
+                {interimTranscript || '話してください...'}
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
