@@ -36,6 +36,7 @@ export type SpeechRecognition = EventTarget & {
   lang: string;
   maxAlternatives: number;
 
+  onstart: (() => void) | null;
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
   onend: (() => void) | null;
