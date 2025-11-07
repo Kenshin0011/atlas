@@ -5,14 +5,23 @@
 
 'use client';
 
-import type { ImportantUtterance } from '../hooks/useStream';
+import type { Utterance } from '@atlas/core';
+import { useMemo } from 'react';
+import type { DependencyEdge, ImportantUtterance } from '../hooks/useStream';
 
 type DebugAnchorMemoryProps = {
   importantList: ImportantUtterance[];
   anchorCount: number;
+  dialogue: Utterance[];
+  dependencies: DependencyEdge[];
 };
 
-export const DebugAnchorMemory = ({ importantList, anchorCount }: DebugAnchorMemoryProps) => {
+export const DebugAnchorMemory = ({
+  importantList,
+  anchorCount,
+  dialogue,
+  dependencies,
+}: DebugAnchorMemoryProps) => {
   // 平均スコア計算
   const avgScore =
     importantList.length > 0
@@ -23,6 +32,27 @@ export const DebugAnchorMemory = ({ importantList, anchorCount }: DebugAnchorMem
   const significantCount = importantList.filter(
     i => i.score.pValue !== undefined && i.score.pValue < 0.05
   ).length;
+
+  // 発話IDごとに重要発言をグループ化
+  const utteranceChains = useMemo(() => {
+    const chains = new Map<number, number[]>();
+
+    for (const dep of dependencies) {
+      const existing = chains.get(dep.to) || [];
+      existing.push(dep.from);
+      chains.set(dep.to, existing);
+    }
+
+    // 各チェインをソート（時系列順）
+    for (const [key, value] of chains.entries()) {
+      chains.set(
+        key,
+        value.sort((a, b) => a - b)
+      );
+    }
+
+    return chains;
+  }, [dependencies]);
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6">
@@ -61,44 +91,73 @@ export const DebugAnchorMemory = ({ importantList, anchorCount }: DebugAnchorMem
         </div>
       </div>
 
-      {/* 最近の重要発言 */}
+      {/* 発話ごとの重要発言チェイン */}
       <div>
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-          最近の重要発言 (最新5件)
+          発話ごとの重要発言チェイン
         </h3>
-        <div className="space-y-2 max-h-[300px] overflow-y-auto">
-          {importantList.length === 0 ? (
+        <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          {utteranceChains.size === 0 ? (
             <div className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
-              まだ重要発言がありません
+              まだ依存関係がありません
             </div>
           ) : (
-            importantList
-              .slice(-5)
-              .reverse()
-              .map(important => {
-                const { utterance, score } = important;
-                const level =
-                  score.score > 1.5 ? 'critical' : score.score > 1.0 ? 'high' : 'medium';
-                const bgColor =
-                  level === 'critical'
-                    ? 'bg-red-50 dark:bg-red-900/20'
-                    : level === 'high'
-                      ? 'bg-orange-50 dark:bg-orange-900/20'
-                      : 'bg-green-50 dark:bg-green-900/20';
+            Array.from(utteranceChains.entries())
+              .sort((a, b) => b[0] - a[0]) // 新しい発話から表示
+              .map(([utteranceId, chainIds]) => {
+                const utterance = dialogue.find(u => u.id === utteranceId);
+                if (!utterance) return null;
+
+                const displayIndex = dialogue.findIndex(u => u.id === utteranceId);
 
                 return (
-                  <div key={utterance.id} className={`p-3 rounded ${bgColor}`}>
-                    <div className="flex items-start justify-between mb-1">
-                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                        {utterance.speaker}
-                      </span>
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        {score.score.toFixed(2)}
-                      </span>
+                  <div
+                    key={utteranceId}
+                    className="p-3 rounded-lg bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-700"
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* 左側：発話情報 */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-mono text-purple-600 dark:text-purple-400 font-bold">
+                            #{displayIndex !== -1 ? displayIndex + 1 : utteranceId + 1}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            {utterance.speaker}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-1 mb-2">
+                          {utterance.text}
+                        </p>
+
+                        {/* 重要発言チェイン */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-slate-600 dark:text-slate-400">
+                            重要発言:
+                          </span>
+                          {chainIds.map((chainId, _idx) => {
+                            const chainUtt = dialogue.find(u => u.id === chainId);
+                            const chainDisplayIndex = dialogue.findIndex(u => u.id === chainId);
+
+                            return (
+                              <span
+                                key={chainId}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-white dark:bg-slate-800 border border-purple-300 dark:border-purple-600 rounded text-xs"
+                              >
+                                <span className="font-mono font-bold text-purple-600 dark:text-purple-400">
+                                  #{chainDisplayIndex !== -1 ? chainDisplayIndex + 1 : chainId + 1}
+                                </span>
+                                {chainUtt && (
+                                  <span className="text-slate-600 dark:text-slate-400 truncate max-w-[100px]">
+                                    {chainUtt.text}
+                                  </span>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-2">
-                      {utterance.text}
-                    </p>
                   </div>
                 );
               })

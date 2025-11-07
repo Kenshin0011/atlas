@@ -13,7 +13,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { emailToUsername } from '@/lib/supabase/username';
 import { useStreamWithSupabase } from '../hooks/useStreamWithSupabase';
-import { DebugAnchorMemory } from './DebugAnchorMemory';
 import { DebugConversationView } from './DebugConversationView';
 import { DebugDependencyTree } from './DebugDependencyTree';
 import { DebugParameterControl } from './DebugParameterControl';
@@ -266,30 +265,37 @@ const DebugDashboardContent = () => {
 
       {/* メインコンテンツ */}
       <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 左カラム: パラメータ制御 */}
-          <div className="lg:col-span-1 space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          {/* 左カラム: パラメータ制御（1列） */}
+          <div className="xl:col-span-1 space-y-6">
             <DebugParameterControl
               currentParams={params}
               onParamsChange={p => {
                 setParams(p);
               }}
             />
-            <DebugAnchorMemory importantList={importantList} anchorCount={anchorCount} />
           </div>
 
-          {/* 中央カラム: 会話履歴（スコア付き） */}
-          <div className="lg:col-span-1">
-            <DebugConversationView
-              dialogue={dialogue}
-              scores={scores}
-              dependencies={dependencies}
-            />
-          </div>
+          {/* 中央・右カラム: 会話履歴と重要発言チェイン（3列） */}
+          <div className="xl:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 会話履歴 */}
+            <div className="lg:col-span-1">
+              <DebugConversationView
+                dialogue={dialogue}
+                scores={scores}
+                dependencies={dependencies}
+              />
+            </div>
 
-          {/* 右カラム: 依存関係ツリー */}
-          <div className="lg:col-span-1">
-            <DebugDependencyTree dialogue={dialogue} scores={scores} dependencies={dependencies} />
+            {/* 重要発言チェイン */}
+            <div className="lg:col-span-1">
+              <DebugDependencyTree
+                dialogue={dialogue}
+                scores={scores}
+                dependencies={dependencies}
+                importantList={importantList}
+              />
+            </div>
           </div>
         </div>
       </main>

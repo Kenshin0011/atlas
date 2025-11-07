@@ -22,13 +22,14 @@ export const ImportantHighlights = ({
   scores,
 }: ImportantHighlightsProps) => {
   // 依存関係を再帰的に辿って、現在の重要発話チェーンを構築
-  const importantUtterances = useMemo(() => {
+  const { importantUtterances, latestAnalyzedUtterance } = useMemo(() => {
     if (dependencies.length === 0) {
-      return [];
+      return { importantUtterances: [], latestAnalyzedUtterance: null };
     }
 
     // 最新の分析対象発話（依存関係の最新のto）を見つける
     const latestTo = Math.max(...dependencies.map(d => d.to));
+    const latestUtt = dialogue.find(u => u.id === latestTo);
 
     // 再帰的に依存元を辿る
     const buildDependencyChain = (targetId: number, visited = new Set<number>()): number[] => {
@@ -58,7 +59,12 @@ export const ImportantHighlights = ({
     const uniqueIds = [...new Set(chainIds)]; // 重複削除
 
     // 発話IDでフィルタしてソート
-    return dialogue.filter(u => uniqueIds.includes(u.id)).sort((a, b) => a.id - b.id);
+    const utterances = dialogue.filter(u => uniqueIds.includes(u.id)).sort((a, b) => a.id - b.id);
+
+    return {
+      importantUtterances: utterances,
+      latestAnalyzedUtterance: latestUtt || null,
+    };
   }, [dialogue, dependencies]);
 
   // アンカー（他から依存されている重要発話）
@@ -86,86 +92,134 @@ export const ImportantHighlights = ({
 
       {/* 重要発言リスト */}
       <div className="p-3 space-y-1 max-h-[650px] overflow-y-auto">
-        {importantUtterances.length === 0 ? (
+        {importantUtterances.length === 0 && !latestAnalyzedUtterance ? (
           <div className="text-center py-8 text-slate-400 dark:text-slate-500">
             <p className="text-sm">まだ重要発言が検出されていません</p>
           </div>
         ) : (
-          importantUtterances.map((utterance, index) => {
-            const score = scores.get(utterance.id);
-            const isImportantDetected = score?.isImportant || false;
-            const isAnchor = anchorIds.has(utterance.id);
+          <>
+            {/* 最新の分析対象発話を表示 */}
+            {latestAnalyzedUtterance && importantUtterances.length > 0 && (
+              <>
+                {importantUtterances.map((utterance, index) => {
+                  const score = scores.get(utterance.id);
+                  const isImportantDetected = score?.isImportant || false;
+                  const isAnchor = anchorIds.has(utterance.id);
 
-            // 重要発話として検出されたもの = オレンジ、依存元（アンカー）のみ = 緑
-            const colorClasses = isImportantDetected
-              ? {
-                  line: 'bg-orange-400 dark:bg-orange-600',
-                  arrow: 'text-orange-400 dark:text-orange-600',
-                  bg: 'bg-orange-50 dark:bg-orange-900/20',
-                  border: 'border-orange-200 dark:border-orange-800',
-                  dot: 'bg-orange-500',
-                  badge: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-                }
-              : {
-                  line: 'bg-green-400 dark:bg-green-600',
-                  arrow: 'text-green-400 dark:text-green-600',
-                  bg: 'bg-green-50 dark:bg-green-900/20',
-                  border: 'border-green-200 dark:border-green-800',
-                  dot: 'bg-green-500',
-                  badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
-                };
+                  // 重要発話として検出されたもの = オレンジ、依存元（アンカー）のみ = 緑
+                  const colorClasses = isImportantDetected
+                    ? {
+                        line: 'bg-orange-400 dark:bg-orange-600',
+                        arrow: 'text-orange-400 dark:text-orange-600',
+                        bg: 'bg-orange-50 dark:bg-orange-900/20',
+                        border: 'border-orange-200 dark:border-orange-800',
+                        dot: 'bg-orange-500',
+                        badge:
+                          'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+                      }
+                    : {
+                        line: 'bg-green-400 dark:bg-green-600',
+                        arrow: 'text-green-400 dark:text-green-600',
+                        bg: 'bg-green-50 dark:bg-green-900/20',
+                        border: 'border-green-200 dark:border-green-800',
+                        dot: 'bg-green-500',
+                        badge:
+                          'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+                      };
 
-            return (
-              <div key={utterance.id} className="relative">
-                {/* 接続線と矢印 */}
-                {index > 0 && (
-                  <div className="flex items-center justify-center h-8 -mb-2">
-                    <div className="flex flex-col items-center">
-                      <div className={`w-0.5 h-4 ${colorClasses.line}`} />
-                      <svg
-                        className={`w-4 h-4 ${colorClasses.arrow}`}
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
+                  return (
+                    <div key={utterance.id} className="relative">
+                      {/* 接続線と矢印 */}
+                      {index > 0 && (
+                        <div className="flex items-center justify-center h-8 -mb-2">
+                          <div className="flex flex-col items-center">
+                            <div className={`w-0.5 h-4 ${colorClasses.line}`} />
+                            <svg
+                              className={`w-4 h-4 ${colorClasses.arrow}`}
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <title>依存</title>
+                              <path
+                                fillRule="evenodd"
+                                d="M10 3a1 1 0 011 1v10.586l2.293-2.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V4a1 1 0 011-1z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 発話カード */}
+                      <div
+                        className={`w-full text-left p-3 rounded-lg border transition-all ${colorClasses.bg} ${colorClasses.border}`}
                       >
-                        <title>依存</title>
-                        <path
-                          fillRule="evenodd"
-                          d="M10 3a1 1 0 011 1v10.586l2.293-2.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V4a1 1 0 011-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div
+                            className={`w-2 h-2 rounded-full ${colorClasses.dot} flex-shrink-0`}
+                          />
+                          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                            {utterance.speaker}
+                          </span>
+                          <span className="text-xs text-slate-500 dark:text-slate-500">
+                            {formatTimeAgo(utterance.timestamp, Date.now())}
+                          </span>
+                          {isImportantDetected && (
+                            <span className={`text-xs px-2 py-0.5 rounded ${colorClasses.badge}`}>
+                              重要検出
+                            </span>
+                          )}
+                          {isAnchor && !isImportantDetected && (
+                            <span className={`text-xs px-2 py-0.5 rounded ${colorClasses.badge}`}>
+                              依存元
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">
+                          {utterance.text}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })}
 
-                {/* 発話カード */}
-                <div
-                  className={`w-full text-left p-3 rounded-lg border transition-all ${colorClasses.bg} ${colorClasses.border}`}
-                >
+                {/* 矢印 */}
+                <div className="flex items-center justify-center h-8 -mb-2">
+                  <div className="flex flex-col items-center">
+                    <div className="w-0.5 h-4 bg-blue-400 dark:bg-blue-600" />
+                    <svg
+                      className="w-4 h-4 text-blue-400 dark:text-blue-600"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <title>分析対象</title>
+                      <path
+                        fillRule="evenodd"
+                        d="M10 3a1 1 0 011 1v10.586l2.293-2.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V4a1 1 0 011-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* 最新の分析対象発話カード */}
+                <div className="w-full text-left p-3 rounded-lg border transition-all bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className={`w-2 h-2 rounded-full ${colorClasses.dot} flex-shrink-0`} />
+                    <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
                     <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                      {utterance.speaker}
+                      {latestAnalyzedUtterance.speaker}
                     </span>
                     <span className="text-xs text-slate-500 dark:text-slate-500">
-                      {formatTimeAgo(utterance.timestamp, Date.now())}
+                      {formatTimeAgo(latestAnalyzedUtterance.timestamp, Date.now())}
                     </span>
-                    {isImportantDetected && (
-                      <span className={`text-xs px-2 py-0.5 rounded ${colorClasses.badge}`}>
-                        重要検出
-                      </span>
-                    )}
-                    {isAnchor && !isImportantDetected && (
-                      <span className={`text-xs px-2 py-0.5 rounded ${colorClasses.badge}`}>
-                        依存元
-                      </span>
-                    )}
                   </div>
-                  <p className="text-sm text-slate-700 dark:text-slate-300">{utterance.text}</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">
+                    {latestAnalyzedUtterance.text}
+                  </p>
                 </div>
-              </div>
-            );
-          })
+              </>
+            )}
+          </>
         )}
       </div>
     </div>
