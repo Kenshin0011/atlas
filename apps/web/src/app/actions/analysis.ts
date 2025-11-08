@@ -10,11 +10,9 @@ import { type AnalysisResult, analyzeConversation } from '@/lib/services/analysi
 
 type AnalysisOptions = {
   k?: number;
-  alphaMix?: number;
   halfLifeTurns?: number;
   nullSamples?: number;
   fdrAlpha?: number;
-  mmrLambda?: number;
 };
 
 /**

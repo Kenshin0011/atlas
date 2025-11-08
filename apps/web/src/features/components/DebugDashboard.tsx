@@ -31,11 +31,9 @@ const DebugDashboardContent = () => {
   // @atlas/core の defaultOptions を使用
   const [params, setParams] = useState({
     k: defaultOptions.k,
-    alphaMix: defaultOptions.alphaMix,
     halfLifeTurns: defaultOptions.halfLifeTurns,
     nullSamples: defaultOptions.nullSamples,
     fdrAlpha: defaultOptions.fdrAlpha,
-    mmrLambda: defaultOptions.mmrLambda,
   });
 
   // Stream Hook with Supabase

@@ -11,16 +11,14 @@
 export type AnalyzerOptions = {
   /** 直近k文の厳密評価 */
   k?: number;
-  /** 損失/サプライザルの混合比 (0..1) */
-  alphaMix?: number;
   /** 何発話で半減させるか */
   halfLifeTurns?: number;
   /** 帰無サンプル数 */
   nullSamples?: number;
   /** BHのFDR閾値 */
   fdrAlpha?: number;
-  /** 多様化強度 (0..1) */
-  mmrLambda?: number;
+  /** 個別損失と集合損失のミックス係数（0-1, デフォルト0.5） */
+  individualMix?: number;
 };
 
 /**
@@ -28,9 +26,8 @@ export type AnalyzerOptions = {
  */
 export const defaultOptions: Required<AnalyzerOptions> = {
   k: 15,
-  alphaMix: 0.6,
-  halfLifeTurns: 20,
+  halfLifeTurns: 50, // 50ターンで半減（大幅に緩和）
   nullSamples: 20,
   fdrAlpha: 0.1,
-  mmrLambda: 0.7,
+  individualMix: 0.5, // 個別損失50%、集合損失50%
 };

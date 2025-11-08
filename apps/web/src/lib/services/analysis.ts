@@ -30,11 +30,9 @@ const getAdapter = (): OpenAIAdapter => {
 
 export type AnalysisOptions = {
   k?: number;
-  alphaMix?: number;
   halfLifeTurns?: number;
   nullSamples?: number;
   fdrAlpha?: number;
-  mmrLambda?: number;
 };
 
 export type AnalysisResult = {
@@ -85,11 +83,9 @@ export const analyzeConversation = async (
   // 分析実行
   const result = await analyzeWithAnchors(adapter, history, current, anchorMemory, {
     k: options.k ?? defaultOptions.k,
-    alphaMix: options.alphaMix ?? defaultOptions.alphaMix,
     halfLifeTurns: options.halfLifeTurns ?? defaultOptions.halfLifeTurns,
     nullSamples: options.nullSamples ?? defaultOptions.nullSamples,
     fdrAlpha: options.fdrAlpha ?? defaultOptions.fdrAlpha,
-    mmrLambda: options.mmrLambda ?? defaultOptions.mmrLambda,
   });
 
   // 重要発言をアンカーメモリに追加

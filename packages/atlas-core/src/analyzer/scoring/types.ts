@@ -15,11 +15,9 @@ export type ScoreDetail = {
   maskedLoss: number;
   /** 差分損失 D_i = maskedLoss - baseLoss */
   deltaLoss: number;
-  /** サプライザル差分（任意） */
-  surprisalDelta?: number;
   /** 時間減衰重み e^{-lambda * age} */
   ageWeight: number;
-  /** 生スコア（減衰適用前） */
+  /** 生スコア（減衰適用前、deltaLossと同じ） */
   rawScore: number;
   /** 最終スコア（減衰適用後） */
   finalScore: number;

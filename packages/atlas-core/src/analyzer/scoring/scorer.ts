@@ -35,19 +35,16 @@ export const scoreUtterances = async (
   const details: ScoreDetail[] = candidates.map((u, i) => {
     const masked = maskedLosses[i];
     const delta = masked - baseLoss; // 劣化量
-    const surpr = 0; // 実装する場合はここで差分を入れる
     const ageTurns = history.length - history.indexOf(u); // 新しいほど小
     const ageW = timeDecayWeight(ageTurns, options.halfLifeTurns);
-    const raw = options.alphaMix * delta + (1 - options.alphaMix) * surpr;
-    const final = raw * ageW;
+    const final = delta * ageW;
 
     return {
       baseLoss,
       maskedLoss: masked,
       deltaLoss: delta,
-      surprisalDelta: surpr,
       ageWeight: ageW,
-      rawScore: raw,
+      rawScore: delta,
       finalScore: final,
     };
   });

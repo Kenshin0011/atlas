@@ -63,11 +63,9 @@ type UseStreamOptions = {
   // 分析オプション
   analysisOptions?: {
     k?: number;
-    alphaMix?: number;
     halfLifeTurns?: number;
     nullSamples?: number;
     fdrAlpha?: number;
-    mmrLambda?: number;
   };
 };
 
@@ -104,11 +102,9 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
 
         const data = await analyzeConversationAction(history, current, {
           k: analysisOptions.k ?? defaultOptions.k,
-          alphaMix: analysisOptions.alphaMix ?? defaultOptions.alphaMix,
           halfLifeTurns: analysisOptions.halfLifeTurns ?? defaultOptions.halfLifeTurns,
           nullSamples: analysisOptions.nullSamples ?? defaultOptions.nullSamples,
           fdrAlpha: analysisOptions.fdrAlpha ?? defaultOptions.fdrAlpha,
-          mmrLambda: analysisOptions.mmrLambda ?? defaultOptions.mmrLambda,
         });
 
         // スコアマップ更新

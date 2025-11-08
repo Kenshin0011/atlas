@@ -10,11 +10,9 @@ import { useState } from 'react';
 
 type AnalysisParameters = {
   k: number;
-  alphaMix: number;
   halfLifeTurns: number;
   nullSamples: number;
   fdrAlpha: number;
-  mmrLambda: number;
 };
 
 type DebugParameterControlProps = {
@@ -25,11 +23,9 @@ type DebugParameterControlProps = {
 // @atlas/core の defaultOptions を使用
 const DEFAULT_PARAMS: AnalysisParameters = {
   k: defaultOptions.k,
-  alphaMix: defaultOptions.alphaMix,
   halfLifeTurns: defaultOptions.halfLifeTurns,
   nullSamples: defaultOptions.nullSamples,
   fdrAlpha: defaultOptions.fdrAlpha,
-  mmrLambda: defaultOptions.mmrLambda,
 };
 
 export const DebugParameterControl = ({
@@ -82,9 +78,9 @@ export const DebugParameterControl = ({
           <div className="text-lg font-bold text-slate-800 dark:text-slate-100">{params.k}</div>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded">
-          <div className="text-xs text-slate-500 dark:text-slate-400">混合比 (α)</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">時間減衰半減期</div>
           <div className="text-lg font-bold text-slate-800 dark:text-slate-100">
-            {params.alphaMix.toFixed(2)}
+            {params.halfLifeTurns}
           </div>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded">
@@ -115,27 +111,6 @@ export const DebugParameterControl = ({
             <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
               <span>3</span>
               <span>20</span>
-            </div>
-          </div>
-
-          {/* alphaMix: 損失/サプライザル混合比 */}
-          <div>
-            <div className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              <span className="font-mono">alphaMix</span> - 損失/サプライザル混合:{' '}
-              {params.alphaMix.toFixed(2)}
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={params.alphaMix}
-              onChange={e => handleChange('alphaMix', Number.parseFloat(e.target.value))}
-              className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
-              <span>0.0</span>
-              <span>1.0</span>
             </div>
           </div>
 
@@ -200,27 +175,6 @@ export const DebugParameterControl = ({
               <span>0.20</span>
             </div>
           </div>
-
-          {/* mmrLambda: MMR多様化強度 */}
-          <div>
-            <div className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              <span className="font-mono">mmrLambda</span> - MMR多様化強度:{' '}
-              {params.mmrLambda.toFixed(2)}
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={params.mmrLambda}
-              onChange={e => handleChange('mmrLambda', Number.parseFloat(e.target.value))}
-              className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
-              <span>0.0</span>
-              <span>1.0</span>
-            </div>
-          </div>
         </div>
       )}
 
@@ -233,10 +187,6 @@ export const DebugParameterControl = ({
               <span className="font-mono">k</span>: 直近k発話を厳密評価する範囲
             </li>
             <li>
-              <span className="font-mono">alphaMix</span>:
-              損失とサプライザルの混合比（0=サプライザルのみ、1=損失のみ）
-            </li>
-            <li>
               <span className="font-mono">halfLifeTurns</span>: 何発話で重要度が半減するか
             </li>
             <li>
@@ -244,10 +194,6 @@ export const DebugParameterControl = ({
             </li>
             <li>
               <span className="font-mono">fdrAlpha</span>: Benjamini-Hochberg FDR制御の有意水準
-            </li>
-            <li>
-              <span className="font-mono">mmrLambda</span>:
-              MMR多様化の関連度vs多様度バランス（0=多様度重視、1=関連度重視）
             </li>
           </ul>
         </div>
