@@ -17,8 +17,6 @@ export type AnalyzerOptions = {
   nullSamples?: number;
   /** BHのFDR閾値 */
   fdrAlpha?: number;
-  /** 個別損失と集合損失のミックス係数（0-1, デフォルト0.5） */
-  individualMix?: number;
 };
 
 /**
@@ -29,5 +27,4 @@ export const defaultOptions: Required<AnalyzerOptions> = {
   halfLifeTurns: 50, // 50ターンで半減（大幅に緩和）
   nullSamples: 20,
   fdrAlpha: 0.1,
-  individualMix: 0.5, // 個別損失50%、集合損失50%
 };

@@ -25,9 +25,9 @@
 
 ### 核となるアイデア
 
-> **「ある発話を履歴から除外したとき、現在の発話の予測が困難になるなら、その発話は重要である」**
+> **「ある発話が現在の発話と意味的に関連し、かつ除外すると予測が困難になるなら、その発話は重要である」**
 
-これを **Masked Language Modeling (MLM)** と **統計的仮説検定** で定量化します。
+これを **Composite Scoring（個別類似度 + 文脈的重要度）** と **統計的仮説検定** で定量化します。
 
 ### 主な機能
 
@@ -93,22 +93,25 @@
 └─────────────────────────────────────────┘
   ↓
 ┌─────────────────────────────────────────┐
-│ 3. Masked Loss計算（並列実行）            │
+│ 3. Composite Score計算（並列実行）        │
 │    各候補 u について：                    │
-│    L(Y|H\{u}) = 1 - cos(H̄_{-u}, Y)      │
-│    ΔL(u) = L(Y|H\{u}) - L(Y|H)          │
+│    individualLoss = 1 - cos(u, Y)       │
+│    maskedLoss = 1 - cos(H̄_{-u}, Y)      │
+│    individualDelta = baseLoss - individualLoss  │
+│    contextDelta = maskedLoss - baseLoss │
+│    compositeDelta = α×individualDelta + (1-α)×contextDelta  │
 └─────────────────────────────────────────┘
   ↓ 並列実行
 ┌─────────────────────────────────────────┐
 │ 4. 帰無サンプル生成（並列実行）              │
 │    - 履歴をシャッフルしてN回繰り返し         │
-│    - ランダムなΔLを計算                    │
+│    - 各サンプルでcompositeDeltaを計算      │
 └─────────────────────────────────────────┘
   ↓
 ┌─────────────────────────────────────────┐
 │ 5. スコア計算                             │
 │    - 時間減衰重み付け                      │
-│    - 最終スコア = ΔL × ageWeight          │
+│    - 最終スコア = compositeDelta × ageWeight  │
 └─────────────────────────────────────────┘
   ↓
 ┌─────────────────────────────────────────┐
@@ -166,17 +169,51 @@ async lossWithHistory(history: Utterance[], current: Utterance): Promise<number>
 }
 ```
 
-### 2. マスク損失の差分（ΔLoss）
+### 2. Composite Scoring（複合スコアリング）
 
-**定義:**
+**2つの視点から重要度を測る:**
 
+従来は「履歴から除外すると困るか？」だけで判定していましたが、履歴が長いと1文除外しても影響が小さく、スコアが低くなる問題がありました。
+
+**新方式では2つの指標を組み合わせます:**
+
+#### ① Individual Loss（個別類似度）
+> **「この発話と現在の発話は、意味的に似ているか？」**
+
+```typescript
+individualLoss = 1 - cos(u, Y)  // 2つの発話の埋め込みを直接比較
 ```
-ΔL(u) = L(Y|H\{u}) - L(Y|H)
+
+**例:**
+- 発話A: "研修で使うロボットは？"
+- 発話B: "ペッパーを使いました"
+- 現在: "ロボットはやっぱり必要だよね"
+
+→ 発話A,Bは「ロボット」という共通トピックがあり、individualLoss が**低い（=類似度が高い）**
+
+#### ② Context Loss（文脈的重要度）
+> **「この発話を除外すると、履歴全体の予測精度が下がるか？」**
+
+```typescript
+contextDelta = maskedLoss - baseLoss  // 除外前後の損失差分
 ```
 
-- `L(Y|H\{u})`: 発話uを除外した履歴からの損失
-- **正の値**: uを除外すると予測が困難（= 重要）
-- **負の値**: uは冗長
+**例:**
+会話の流れを作る発話や、後続の文脈に必要な情報を提供する発話が高スコアになります。
+
+#### 複合スコア
+
+```typescript
+compositeDelta = α × individualDelta + (1-α) × contextDelta
+
+// individualDelta = baseLoss - individualLoss（個別類似度が高いほど大きい）
+// contextDelta = maskedLoss - baseLoss（除外時の影響が大きいほど大きい）
+```
+
+**パラメータ `α = individualMix` で調整:**
+- `α = 1.0`: 完全に個別類似度のみ（「ロボット」という単語の関連だけで判定）
+- `α = 0.5`: バランス型（デフォルト）
+- `α = 0.0`: 完全に文脈損失のみ（従来方式）
 
 **実装:**
 
@@ -190,24 +227,37 @@ export const scoreUtterances = async (
   baseLoss: number,
   options: Required<AnalyzerOptions>
 ): Promise<ScoreDetail[]> => {
-  // 並列処理: 全候補のmaskedLossを同時に計算
-  const maskedLosses = await Promise.all(
-    candidates.map(u => adapter.maskedLoss(history, current, u))
-  );
+  // 並列処理: maskedLoss と individualLoss を同時計算
+  const [maskedLosses, individualLosses] = await Promise.all([
+    Promise.all(candidates.map(u => adapter.maskedLoss(history, current, u))),
+    Promise.all(candidates.map(u => adapter.individualLoss(u, current))),
+  ]);
 
   const details: ScoreDetail[] = candidates.map((u, i) => {
     const masked = maskedLosses[i];
-    const delta = masked - baseLoss;  // ⭐ 劣化量
+    const individual = individualLosses[i];
+
+    // 文脈損失差分
+    const contextDelta = masked - baseLoss;
+    // 個別損失差分
+    const individualDelta = baseLoss - individual;
+    // 複合スコア
+    const alpha = options.individualMix;
+    const compositeDelta = alpha * individualDelta + (1 - alpha) * contextDelta;
 
     // 時間減衰重み
     const ageTurns = history.length - history.indexOf(u);
     const ageW = timeDecayWeight(ageTurns, options.halfLifeTurns);
+    const final = compositeDelta * ageW;
 
-    // 最終スコア
-    const raw = options.alphaMix * delta;
-    const final = raw * ageW;
-
-    return { baseLoss, maskedLoss: masked, deltaLoss: delta, ageWeight: ageW, rawScore: raw, finalScore: final };
+    return {
+      baseLoss,
+      maskedLoss: masked,
+      deltaLoss: compositeDelta,  // ⭐ 複合スコア
+      ageWeight: ageW,
+      rawScore: compositeDelta,
+      finalScore: final
+    };
   });
 
   return details;
@@ -222,7 +272,7 @@ export const scoreUtterances = async (
 
 1. 履歴をシャッフル（`nullSamples`回）
 2. 各回で直近k文を選択
-3. ΔLossを計算
+3. 各候補について compositeDelta を計算
 4. 全サンプルをフラット化
 
 **実装:**
@@ -240,17 +290,28 @@ export const generateNullSamples = async (
     const shuffled = shuffle(history);
     const sample = shuffled.slice(-Math.min(options.k, shuffled.length));
 
-    // baseLossと全maskedLossを並列計算
-    const [baseNull, ...maskedLosses] = await Promise.all([
-      adapter.lossWithHistory(shuffled, current),
-      ...sample.map(u => adapter.maskedLoss(shuffled, current, u)),
-    ]);
+    const baseNull = await adapter.lossWithHistory(shuffled, current);
 
-    return maskedLosses.map(ml => ml - baseNull);  // ⭐ ΔLoss
+    const compositeDeltas = await Promise.all(
+      sample.map(async u => {
+        const [masked, individual] = await Promise.all([
+          adapter.maskedLoss(shuffled, current, u),
+          adapter.individualLoss(u, current),
+        ]);
+
+        const contextDelta = masked - baseNull;
+        const individualDelta = baseNull - individual;
+        const alpha = options.individualMix;
+
+        return alpha * individualDelta + (1 - alpha) * contextDelta;  // ⭐ compositeDelta
+      })
+    );
+
+    return compositeDeltas;
   });
 
   const allSamples = await Promise.all(samplePromises);
-  return allSamples.flat();  // [ΔL_1, ΔL_2, ..., ΔL_N×k]
+  return allSamples.flat();  // [compositeDelta_1, compositeDelta_2, ..., compositeDelta_N×k]
 };
 ```
 
@@ -521,11 +582,10 @@ type Utterance = {
 ```typescript
 type AnalyzerOptions = {
   k?: number;                // 直近k文を厳密評価 (default: 15)
-  alphaMix?: number;         // 損失重視度 0..1 (default: 0.6)
-  halfLifeTurns?: number;    // 半減期ターン数 (default: 20)
-  nullSamples?: number;      // 帰無サンプル数 (default: 20)
+  halfLifeTurns?: number;    // 半減期ターン数 (default: 50)
+  nullSamples?: number;      // 帰無サンプル数 (default: 20, 自動調整: min 3×candidates)
   fdrAlpha?: number;         // FDR閾値 (default: 0.1)
-  mmrLambda?: number;        // MMR重要度重視度 (default: 0.7)
+  individualMix?: number;    // 個別/文脈損失ミックス比 0..1 (default: 0.5)
 };
 ```
 
@@ -597,42 +657,72 @@ function analyzeWithAnchors(
 - 通常の会話（20-50発話）: `k=15`（デフォルト）
 - 長い会話（>50発話）: `k=20-30`
 
-### `alphaMix` (損失ミックス比)
+### `individualMix` (個別/文脈損失ミックス比)
 
-**デフォルト:** 0.6
+**デフォルト:** 0.5
 
-**効果:** 損失ベーススコアとサプライザルの混合比
+**何を測るか:** "言葉の類似度" と "文脈での役割" のどちらを重視するか
 
+```typescript
+compositeDelta = individualMix × individualDelta + (1 - individualMix) × contextDelta
 ```
-rawScore = alphaMix × ΔLoss + (1 - alphaMix) × surprisal
+
+#### 使い分け
+
+**高い値（0.7～1.0）: 言葉の類似度を重視**
 ```
+"研修どうする？" → "ペッパー使った" → "ロボット必要だね"
+```
+→ 「研修/ペッパー/ロボット」という**トピックの繋がり**で重要と判定
 
-- **高い値（0.8）:** コンテキスト依存性を重視
-- **低い値（0.4）:** 意外性を重視
+**用途:** トピック追跡、キーワード抽出、議事録の章立て
 
-**推奨:** `alphaMix = 0.6`（バランス重視）
+---
+
+**低い値（0.0～0.3）: 文脈での役割を重視**
+```
+"明日会議があります" → "了解" → "資料準備します" → "資料の内容は？"
+```
+→ 「明日会議」は後の文脈を成立させる**土台**として重要と判定（言葉は似てなくても）
+
+**用途:** 会話の流れ分析、因果関係抽出
+
+---
+
+**中間（0.4～0.6）: バランス型（推奨）**
+
+両方の側面から重要度を判定。迷ったらデフォルトの `0.5` で。
+
+#### 具体的な設定例
+
+| 用途 | individualMix | 理由 |
+|------|--------------|------|
+| 議事録のトピック抽出 | 0.7 | 「予算」「スケジュール」など、キーワードの繋がりを追跡 |
+| 汎用的な会話分析 | 0.5 | バランス型 |
+| 会話の因果構造分析 | 0.3 | 「AがあったからBになった」という依存関係を重視 |
 
 ### `halfLifeTurns` (時間減衰半減期)
 
-**デフォルト:** 20
+**デフォルト:** 50
 
 **効果:** 何ターンで重みが半減するか
 
-- **短い半減期（10）:**
+- **短い半減期（20～30）:**
   - 最近の文脈を重視
   - リアルタイムチャット向け
 
-- **長い半減期（30）:**
+- **長い半減期（50～80）:**
   - 長期的な文脈を保持
+  - 会話冒頭のトピック導入発話を捕捉
   - 議論・ミーティング向け
 
 **推奨:**
-- チャット: `halfLifeTurns=10-15`
-- ミーティング: `halfLifeTurns=20-30`
+- チャット: `halfLifeTurns=20-30`
+- ミーティング: `halfLifeTurns=50-80`（デフォルト）
 
 ### `nullSamples` (帰無サンプル数)
 
-**デフォルト:** 20
+**デフォルト:** 20（自動調整あり）
 
 **効果:** 統計的検定の精度
 
@@ -644,9 +734,15 @@ rawScore = alphaMix × ΔLoss + (1 - alphaMix) × surprisal
   - 高精度
   - 計算コスト増加
 
+**自動調整:**
+```typescript
+adjustedNullSamples = Math.max(nullSamples, candidates.length * 3)
+```
+短い会話でも統計的検出力を確保するため、候補数の3倍に自動調整されます。
+
 **推奨:**
 - 開発・デバッグ: `nullSamples=10`
-- 本番環境: `nullSamples=20-50`
+- 本番環境: `nullSamples=20`（自動調整に任せる）
 
 ### `fdrAlpha` (p値閾値)
 
@@ -801,6 +897,8 @@ const current: Utterance = {
 
 const result = await analyze(adapter, history, current, {
   k: 15,
+  halfLifeTurns: 50,
+  individualMix: 0.5,
   fdrAlpha: 0.1,
 });
 

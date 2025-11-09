@@ -16,7 +16,7 @@ export type OpenAIAdapterConfig = {
   model?: string;
   /** 埋め込み次元数 */
   embeddingDimension?: number;
-  /** 時間減衰率（重み付き平均用、デフォルト: 0.15） */
+  /** 時間減衰率（重み付き平均用、デフォルト: 0.05） */
   decayLambda?: number;
 };
 
@@ -31,7 +31,7 @@ export class OpenAIAdapter implements ModelAdapter {
     this.apiKey = config.apiKey;
     this.model = config.model || 'text-embedding-3-small';
     this.embeddingDimension = config.embeddingDimension || 1536;
-    this.decayLambda = config.decayLambda ?? 0.15;
+    this.decayLambda = config.decayLambda ?? 0.05;
   }
 
   /**
@@ -139,7 +139,6 @@ export class OpenAIAdapter implements ModelAdapter {
    *
    * 最適化: バッチAPI呼び出しで全embeddings取得
    * → 複数のHTTPリクエストを1回に削減
-   * 重み付き平均により、最近の発話の影響を大きくして感度を向上
    */
   async lossWithHistory(history: Utterance[], current: Utterance): Promise<number> {
     if (history.length === 0) {
@@ -153,7 +152,7 @@ export class OpenAIAdapter implements ModelAdapter {
     const historyVecs = allVecs.slice(0, history.length);
     const currentVec = allVecs[history.length];
 
-    // 時間減衰を考慮した重み付き平均ベクトルを計算（API不要）
+    // 均等重み付き平均ベクトルを計算
     const weights = this.computeTemporalWeights(historyVecs.length);
     const avgVec = this.weightedAverageVectors(historyVecs, weights);
 
@@ -194,7 +193,7 @@ export class OpenAIAdapter implements ModelAdapter {
     const originalWeights = this.computeTemporalWeights(history.length);
     const filteredWeights = originalWeights.filter((_, i) => i !== maskedIndex);
 
-    // フィルタ後の重み付き平均ベクトルを計算（API不要）
+    // フィルタ後の均等重み付き平均ベクトルを計算
     const avgVec = this.weightedAverageVectors(filteredVecs, filteredWeights);
 
     const similarity = this.cosineSimilarity(avgVec, currentVec);
@@ -203,8 +202,8 @@ export class OpenAIAdapter implements ModelAdapter {
   }
 
   /**
-   * 時間減衰を考慮した重みを計算
-   * 新しい発話ほど大きな重みを持つ（exponential decay）
+   * 均等な重みを計算
+   * 全ての履歴発話に等しい重みを与える（時間減衰はscorer側で一元管理）
    * @param length 履歴の長さ
    * @returns 正規化された重み配列（合計=1）
    */
@@ -213,16 +212,9 @@ export class OpenAIAdapter implements ModelAdapter {
       return [];
     }
 
-    // weight[i] = exp(-lambda × (length - 1 - i))
-    // i=0が最古、i=length-1が最新
-    const weights = Array.from({ length }, (_, i) => {
-      const distance = length - 1 - i; // 最新からの距離
-      return Math.exp(-this.decayLambda * distance);
-    });
-
-    // 正規化（合計=1）
-    const sum = weights.reduce((acc, w) => acc + w, 0);
-    return weights.map(w => w / sum);
+    // 全て均等な重み（1/length）
+    const weight = 1 / length;
+    return Array.from({ length }, () => weight);
   }
 
   /**

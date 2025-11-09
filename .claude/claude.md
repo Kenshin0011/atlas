@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # ATLAS Project Guide
 
 ## Project Overview
@@ -50,19 +54,19 @@ atlas/
 
 ATLAS detects important utterances in real-time conversations using:
 
-1. **Anchor Memory**: Maintains k most important past utterances (default k=3)
-2. **Temporal Weighting**: Exponential decay based on distance (λ=0.15)
-3. **Masked Language Modeling**: Predicts current utterance from anchors using embeddings
+1. **Composite Scoring**: Combines individual similarity and contextual importance
+   - **Individual Loss**: Direct semantic similarity between single utterance and current (cosine similarity of embeddings)
+   - **Context Loss**: Importance when removed from full history context (masked loss - base loss)
+   - **Formula**: `compositeDelta = α × individualDelta + (1-α) × contextDelta`
+2. **Temporal Weighting**: Exponential decay based on distance (applied at scoring stage only)
+3. **Masked Language Modeling**: Predicts current utterance from history using embeddings (equal weighting in adapter)
 4. **Statistical Significance**: Uses permutation testing and p-value thresholding (α=0.1)
-5. **MMR-based Selection**: Balances relevance and diversity when selecting anchors (λ=0.7)
 
 **Key Parameters:**
-- `k`: Number of anchors to maintain (default: 3)
-- `alphaMix`: Weight mixing between base and masked loss (default: 0.7)
-- `halfLifeTurns`: Temporal decay half-life in turns (default: 10)
-- `nullSamples`: Number of null samples for permutation test (default: 100)
+- `k`: Number of candidates to evaluate (default: 15)
+- `halfLifeTurns`: Temporal decay half-life in turns (default: 50, relaxed to better capture early topic introductions)
+- `nullSamples`: Number of null samples for permutation test (default: 20, auto-adjusted to min 3× candidates)
 - `fdrAlpha`: False discovery rate threshold (default: 0.1)
-- `mmrLambda`: MMR diversity parameter (default: 0.7)
 
 ### Temporal Decay Function
 
@@ -135,11 +139,9 @@ Analyzes a new utterance for importance detection.
   current: Utterance;    // New utterance to analyze
   options?: {
     k?: number;
-    alphaMix?: number;
     halfLifeTurns?: number;
     nullSamples?: number;
     fdrAlpha?: number;
-    mmrLambda?: number;
   };
 }
 ```
@@ -276,9 +278,10 @@ NEXT_PUBLIC_ADMIN_USERS=admin@example.com,admin2@example.com
 If too few/many important utterances are detected, adjust these parameters:
 
 - **Increase `fdrAlpha`** (0.1 → 0.15): More lenient detection
-- **Decrease `k`** (3 → 2): Fewer anchors, higher importance threshold
-- **Increase `halfLifeTurns`** (10 → 15): Longer temporal memory
-- **Decrease `nullSamples`** (100 → 50): Faster but less accurate p-values
+- **Increase `k`** (15 → 20): Evaluate more candidates
+- **Increase `halfLifeTurns`** (50 → 80): Even longer temporal memory
+- **Decrease `halfLifeTurns`** (50 → 30): Prioritize more recent utterances
+- **Note**: `nullSamples` auto-adjusts, manual override rarely needed
 
 ## Future Enhancements
 

@@ -46,10 +46,14 @@ export const analyze = async (
   // 候補集合：直近k文
   const candidates = [...recent];
 
+  // nullSamples を候補数に応じて動的調整
+  // 短い会話でも十分なサンプル数を確保（最低でも候補数の3倍）
+  const adjustedNullSamples = Math.max(o.nullSamples, candidates.length * 3);
+
   // 並列処理: スコア計算と帰無サンプル生成を同時実行
   const [details, nullScores] = await Promise.all([
     scoreUtterances(adapter, history, current, candidates, baseLoss, o),
-    generateNullSamples(adapter, history, current, o),
+    generateNullSamples(adapter, history, current, { ...o, nullSamples: adjustedNullSamples }),
   ]);
 
   // 正規化 → p値化 → BH-FDR
