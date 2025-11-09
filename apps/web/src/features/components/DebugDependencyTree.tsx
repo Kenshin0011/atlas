@@ -226,7 +226,7 @@ export const DebugDependencyTree = ({
                 const isPastImportant = link.score?.isImportant && !isDirectDep && !isTarget;
 
                 return (
-                  <div key={link.utteranceId}>
+                  <div key={`${chainData.targetId}-${link.utteranceId}-${idx}`}>
                     {/* 発話カード */}
                     <div
                       className={`p-3 rounded-lg border ${
