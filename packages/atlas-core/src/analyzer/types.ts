@@ -15,8 +15,8 @@ export type AnalyzerOptions = {
   halfLifeTurns?: number;
   /** 帰無サンプル数 */
   nullSamples?: number;
-  /** BHのFDR閾値 */
-  fdrAlpha?: number;
+  /** z値閾値（この値以上を重要とみなす） */
+  zThreshold?: number;
 };
 
 /**
@@ -26,5 +26,5 @@ export const defaultOptions: Required<AnalyzerOptions> = {
   k: 15,
   halfLifeTurns: 50, // 50ターンで半減（大幅に緩和）
   nullSamples: 20,
-  fdrAlpha: 0.1,
+  zThreshold: 1.0, // z > 1.0 を重要とみなす
 };

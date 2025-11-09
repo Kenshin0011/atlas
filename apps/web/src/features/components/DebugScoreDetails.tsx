@@ -90,9 +90,9 @@ export const DebugScoreDetails = ({ dialogue, scores }: DebugScoreDetailsProps) 
                   </div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-2 rounded">
-                  <div className="text-xs text-slate-500 dark:text-slate-400">p-value</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">z-score</div>
                   <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                    {score.pValue !== undefined ? score.pValue.toFixed(4) : 'N/A'}
+                    {score.zScore !== undefined ? score.zScore.toFixed(4) : 'N/A'}
                   </div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-2 rounded">

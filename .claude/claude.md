@@ -60,13 +60,13 @@ ATLAS detects important utterances in real-time conversations using:
    - **Formula**: `compositeDelta = α × individualDelta + (1-α) × contextDelta`
 2. **Temporal Weighting**: Exponential decay based on distance (applied at scoring stage only)
 3. **Masked Language Modeling**: Predicts current utterance from history using embeddings (equal weighting in adapter)
-4. **Statistical Significance**: Uses permutation testing and p-value thresholding (α=0.1)
+4. **Statistical Significance**: Uses robust z-score normalization with threshold-based filtering
 
 **Key Parameters:**
 - `k`: Number of candidates to evaluate (default: 15)
 - `halfLifeTurns`: Temporal decay half-life in turns (default: 50, relaxed to better capture early topic introductions)
 - `nullSamples`: Number of null samples for permutation test (default: 20, auto-adjusted to min 3× candidates)
-- `fdrAlpha`: False discovery rate threshold (default: 0.1)
+- `zThreshold`: z-score threshold for importance (default: 1.0, corresponding to top ~16%)
 
 ### Temporal Decay Function
 
@@ -141,7 +141,7 @@ Analyzes a new utterance for importance detection.
     k?: number;
     halfLifeTurns?: number;
     nullSamples?: number;
-    fdrAlpha?: number;
+    zThreshold?: number;
   };
 }
 ```
@@ -154,7 +154,7 @@ Analyzes a new utterance for importance detection.
     text: string;
     score: number;
     rank: number;
-    p?: number;
+    z?: number;
     detail: {
       baseLoss: number;
       maskedLoss: number;
@@ -259,9 +259,9 @@ NEXT_PUBLIC_ADMIN_USERS=admin@example.com,admin2@example.com
 
 1. Open `/debug?session=<sessionId>` for real-time visualization
 2. Check console for score calculation logs:
-   - `[useStreamWithSupabase] スコア保存: ID=X, score=Y, p=Z`
+   - `[useStreamWithSupabase] スコア保存: ID=X, score=Y, z=Z`
 3. Verify embedding dimensions (should be 1536 for text-embedding-3-small)
-4. Check p-values in DebugConversationView (green if < fdrAlpha)
+4. Check z-scores in DebugConversationView (green if > zThreshold)
 5. Inspect anchor count and score details
 
 ### Admin Session Management
@@ -277,7 +277,8 @@ NEXT_PUBLIC_ADMIN_USERS=admin@example.com,admin2@example.com
 
 If too few/many important utterances are detected, adjust these parameters:
 
-- **Increase `fdrAlpha`** (0.1 → 0.15): More lenient detection
+- **Decrease `zThreshold`** (1.0 → 0.5): More lenient detection (lower threshold)
+- **Increase `zThreshold`** (1.0 → 1.5): Stricter detection (higher threshold)
 - **Increase `k`** (15 → 20): Evaluate more candidates
 - **Increase `halfLifeTurns`** (50 → 80): Even longer temporal memory
 - **Decrease `halfLifeTurns`** (50 → 30): Prioritize more recent utterances
@@ -290,7 +291,7 @@ If too few/many important utterances are detected, adjust these parameters:
 3. **Speaker diarization**: Automatic speaker identification
 4. **Context recovery**: Smart summaries for missed conversation parts
 5. **User attention monitoring**: Detect when user is away
-6. **Adaptive thresholding**: Adjust fdrAlpha based on conversation length
+6. **Adaptive thresholding**: Adjust zThreshold based on conversation length
 7. **Export conversation with highlights**: PDF/DOCX export with important utterances marked
 
 ## Contributing

@@ -28,9 +28,9 @@ export const DebugAnchorMemory = ({
       ? importantList.reduce((sum, i) => sum + i.score.score, 0) / importantList.length
       : 0;
 
-  // p値分布
+  // z値分布
   const significantCount = importantList.filter(
-    i => i.score.pValue !== undefined && i.score.pValue < 0.05
+    i => i.score.zScore !== undefined && i.score.zScore > 2.0
   ).length;
 
   // 発話IDごとに重要発言をグループ化
@@ -83,7 +83,7 @@ export const DebugAnchorMemory = ({
 
         <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-3 rounded-lg">
           <div className="text-xs text-orange-700 dark:text-orange-300 font-medium">
-            有意 (p&lt;0.05)
+            有意 (z&gt;2.0)
           </div>
           <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
             {significantCount}

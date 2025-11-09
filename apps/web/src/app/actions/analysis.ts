@@ -12,7 +12,7 @@ type AnalysisOptions = {
   k?: number;
   halfLifeTurns?: number;
   nullSamples?: number;
-  fdrAlpha?: number;
+  zThreshold?: number;
 };
 
 /**

@@ -32,7 +32,7 @@ export type AnalysisOptions = {
   k?: number;
   halfLifeTurns?: number;
   nullSamples?: number;
-  fdrAlpha?: number;
+  zThreshold?: number;
 };
 
 export type AnalysisResult = {
@@ -41,7 +41,7 @@ export type AnalysisResult = {
     text: string;
     score: number;
     rank: number;
-    p?: number;
+    z?: number;
     timestamp: number;
     detail: {
       baseLoss: number;
@@ -57,7 +57,7 @@ export type AnalysisResult = {
     text: string;
     score: number;
     rank: number;
-    p?: number;
+    z?: number;
     detail: {
       baseLoss: number;
       maskedLoss: number;
@@ -85,7 +85,7 @@ export const analyzeConversation = async (
     k: options.k ?? defaultOptions.k,
     halfLifeTurns: options.halfLifeTurns ?? defaultOptions.halfLifeTurns,
     nullSamples: options.nullSamples ?? defaultOptions.nullSamples,
-    fdrAlpha: options.fdrAlpha ?? defaultOptions.fdrAlpha,
+    zThreshold: options.zThreshold ?? defaultOptions.zThreshold,
   });
 
   // 重要発言をアンカーメモリに追加

@@ -7,13 +7,13 @@
 
 type DependencyArrowProps = {
   deltaLoss: number;
-  pValue: number;
+  zScore: number;
   direction: 'up' | 'down';
 };
 
-export const DependencyArrow = ({ deltaLoss, pValue, direction }: DependencyArrowProps) => {
+export const DependencyArrow = ({ deltaLoss, zScore, direction }: DependencyArrowProps) => {
   // 重要度に応じた色
-  const color = pValue < 0.05 ? 'text-red-500' : pValue < 0.1 ? 'text-orange-500' : 'text-gray-400';
+  const color = zScore > 2.0 ? 'text-red-500' : zScore > 1.0 ? 'text-orange-500' : 'text-gray-400';
 
   // 太さ（deltaLossに応じて）
   const thickness =
@@ -47,7 +47,7 @@ export const DependencyArrow = ({ deltaLoss, pValue, direction }: DependencyArro
         </svg>
       )}
       <span className="font-mono">
-        Δ={deltaLoss.toFixed(3)} <span className="opacity-70">p={pValue.toFixed(3)}</span>
+        Δ={deltaLoss.toFixed(3)} <span className="opacity-70">z={zScore.toFixed(3)}</span>
       </span>
     </div>
   );

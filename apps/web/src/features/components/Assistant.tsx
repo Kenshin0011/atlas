@@ -14,9 +14,7 @@ import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { emailToUsername } from '@/lib/supabase/username';
 import { useStreamWithSupabase } from '../hooks/useStreamWithSupabase';
-import { ConversationLayout } from './ConversationLayout';
 import { ConversationTimeline } from './ConversationTimeline';
-import { ImportantHighlights } from './ImportantHighlights';
 import { SpeechRecognitionIndicator } from './SpeechRecognitionIndicator';
 
 type AssistantProps = {
@@ -24,13 +22,11 @@ type AssistantProps = {
 };
 
 type InputMode = 'speech' | 'text';
-type ViewMode = 'highlights' | 'timeline';
 
 export const Assistant = ({ boothId }: AssistantProps) => {
   const { user, loading: authLoading, signOut } = useAuth();
   const { isAdmin: isAdminUser } = useAdmin();
   const [inputMode, setInputMode] = useState<InputMode>('speech');
-  const [viewMode, setViewMode] = useState<ViewMode>('highlights');
   const [textInput, setTextInput] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
 
@@ -40,7 +36,7 @@ export const Assistant = ({ boothId }: AssistantProps) => {
   }, [user?.email]);
 
   // Stream Hook with Supabase (既存セッションを読み込む)
-  const { sessionId, sessionInfo, dialogue, scores, dependencies, addUtterance, isAnalyzing } =
+  const { sessionId, sessionInfo, dialogue, scores, dependencies, addUtterance } =
     useStreamWithSupabase({
       sessionId: boothId,
       onImportantDetected: () => {
@@ -232,32 +228,6 @@ export const Assistant = ({ boothId }: AssistantProps) => {
                 </button>
               </div>
 
-              {/* ビュー切り替えボタン */}
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('highlights')}
-                  className={`px-3 py-1 rounded text-sm transition-colors ${
-                    viewMode === 'highlights'
-                      ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-100 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  🔗 チェイン
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('timeline')}
-                  className={`px-3 py-1 rounded text-sm transition-colors ${
-                    viewMode === 'timeline'
-                      ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-100 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  📜 タイムライン
-                </button>
-              </div>
-
               {/* 音声コントロール（固定幅で常に表示） */}
               <div className="w-[100px]">
                 {inputMode === 'speech' &&
@@ -336,49 +306,22 @@ export const Assistant = ({ boothId }: AssistantProps) => {
             </form>
           )}
 
-          {/* ビュー切り替え */}
-          {viewMode === 'highlights' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              {/* 左側：重要発言チェイン */}
-              <div className="order-1 lg:order-1">
-                <ImportantHighlights
-                  dependencies={dependencies}
-                  dialogue={dialogue}
-                  scores={scores}
-                />
-              </div>
-
-              {/* 右側：現在の発言 */}
-              <div className="order-2 lg:order-2">
-                <ConversationLayout dialogue={dialogue} scores={scores} isAnalyzing={isAnalyzing} />
-
-                <div className="mt-4">
-                  <SpeechRecognitionIndicator
-                    isListening={isListening}
-                    interimTranscript={interimTranscript}
-                  />
-                </div>
-              </div>
+          {/* タイムライン表示 */}
+          <div className="h-[calc(100vh-280px)]">
+            <ConversationTimeline
+              dialogue={dialogue}
+              scores={scores}
+              dependencies={dependencies}
+              currentUtterance={dialogue[dialogue.length - 1]}
+            />
+          </div>
+          {isListening && (
+            <div className="mt-4">
+              <SpeechRecognitionIndicator
+                isListening={isListening}
+                interimTranscript={interimTranscript}
+              />
             </div>
-          ) : (
-            <>
-              <div className="h-[calc(100vh-280px)]">
-                <ConversationTimeline
-                  dialogue={dialogue}
-                  scores={scores}
-                  dependencies={dependencies}
-                  currentUtterance={dialogue[dialogue.length - 1]}
-                />
-              </div>
-              {isListening && (
-                <div className="mt-4">
-                  <SpeechRecognitionIndicator
-                    isListening={isListening}
-                    interimTranscript={interimTranscript}
-                  />
-                </div>
-              )}
-            </>
           )}
         </div>
       </main>

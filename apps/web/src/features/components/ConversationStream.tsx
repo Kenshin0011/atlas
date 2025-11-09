@@ -170,9 +170,9 @@ export const ConversationStream = ({
                   <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
                     <span>Δ損失: {score.detail.deltaLoss.toFixed(3)}</span>
                     <span>時間減衰: {score.detail.ageWeight.toFixed(2)}</span>
-                    {score.pValue !== undefined && (
+                    {score.zScore !== undefined && (
                       <span className="text-purple-600 dark:text-purple-400">
-                        p = {score.pValue.toFixed(3)}
+                        z = {score.zScore.toFixed(3)}
                       </span>
                     )}
                     <span className="text-blue-600 dark:text-blue-400">ランク: #{score.rank}</span>

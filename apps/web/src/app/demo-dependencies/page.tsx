@@ -83,7 +83,7 @@ export default function DemoDependenciesPage() {
   const { dialogue, scores, addUtterance, clear, isAnalyzing } = useStream({
     analysisOptions: {
       ...defaultOptions,
-      fdrAlpha: 0.1, // p < 0.1 で重要と判定
+      zThreshold: 1.0, // z > 1.0 で重要と判定
     },
   });
 

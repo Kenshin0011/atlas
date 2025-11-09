@@ -187,15 +187,15 @@ export const DebugConversationView = ({
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-slate-500 dark:text-slate-400">p-value</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">z-score</div>
                       <div
                         className={`text-sm font-bold ${
-                          score.pValue !== undefined && score.pValue < 0.1
+                          score.zScore !== undefined && score.zScore > 1.0
                             ? 'text-green-600 dark:text-green-400'
                             : 'text-slate-600 dark:text-slate-400'
                         }`}
                       >
-                        {score.pValue !== undefined ? score.pValue.toFixed(3) : 'N/A'}
+                        {score.zScore !== undefined ? score.zScore.toFixed(3) : 'N/A'}
                       </div>
                     </div>
                     <div className="text-right">

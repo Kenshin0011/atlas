@@ -249,15 +249,15 @@ export const DebugDependencyTree = ({
                             Score: {link.score.score.toFixed(3)}
                           </span>
                         )}
-                        {link.score?.pValue !== undefined && (
+                        {link.score?.zScore !== undefined && (
                           <span
                             className={`text-xs font-semibold ${
-                              link.score.pValue < 0.1
+                              link.score.zScore > 1.0
                                 ? 'text-green-600 dark:text-green-400'
                                 : 'text-slate-500 dark:text-slate-400'
                             }`}
                           >
-                            p={link.score.pValue.toFixed(3)}
+                            z={link.score.zScore.toFixed(3)}
                           </span>
                         )}
                         {isPastImportant && (

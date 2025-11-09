@@ -12,9 +12,9 @@ import { analyzeConversationAction } from '@/app/actions/analysis';
 export type Score = {
   utteranceId: number;
   score: number;
-  pValue?: number;
+  zScore?: number;
   rank: number;
-  isImportant: boolean; // FDR制御でp<0.1 かつ高スコア
+  isImportant: boolean; // z > 1.0 かつ高スコア
   detail: {
     baseLoss: number;
     maskedLoss: number;
@@ -65,7 +65,7 @@ type UseStreamOptions = {
     k?: number;
     halfLifeTurns?: number;
     nullSamples?: number;
-    fdrAlpha?: number;
+    zThreshold?: number;
   };
 };
 
@@ -104,7 +104,7 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
           k: analysisOptions.k ?? defaultOptions.k,
           halfLifeTurns: analysisOptions.halfLifeTurns ?? defaultOptions.halfLifeTurns,
           nullSamples: analysisOptions.nullSamples ?? defaultOptions.nullSamples,
-          fdrAlpha: analysisOptions.fdrAlpha ?? defaultOptions.fdrAlpha,
+          zThreshold: analysisOptions.zThreshold ?? defaultOptions.zThreshold,
         });
 
         // スコアマップ更新
@@ -115,7 +115,7 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
             next.set(id, {
               utteranceId: id,
               score: item.score,
-              pValue: item.p,
+              zScore: item.z,
               rank: item.rank,
               isImportant: false,
               detail: item.detail,
@@ -136,7 +136,7 @@ export const useStream = (options: UseStreamOptions = {}): UseStreamReturn => {
               score: {
                 utteranceId: id,
                 score: item.score,
-                pValue: item.p,
+                zScore: item.z,
                 rank: item.rank,
                 isImportant: true,
                 detail: item.detail,

@@ -8,7 +8,6 @@ import type { ModelAdapter } from './adapters/types';
 import { generateNullSamples } from './null-samples';
 import { scoreUtterances } from './scoring/scorer';
 import type { ScoredUtterance } from './scoring/types';
-import { ecdf } from './statistics/fdr';
 import { robustZ } from './statistics/robust';
 import type { AnalyzerOptions } from './types';
 import { defaultOptions } from './types';
@@ -56,22 +55,19 @@ export const analyze = async (
     generateNullSamples(adapter, history, current, { ...o, nullSamples: adjustedNullSamples }),
   ]);
 
-  // 正規化 → p値化 → BH-FDR
+  // 正規化 → z値化
   const finals = details.map(d => d.finalScore);
   const z = robustZ([...finals, ...nullScores]);
-  const zFinals = z.slice(0, finals.length);
-  const zNull = z.slice(finals.length);
-  const F0 = ecdf(zNull);
-  const pvals = zFinals.map(v => 1 - F0(v));
+  const zScores = z.slice(0, finals.length);
 
-  // スコア付き発話を生成
+  // スコア付き発話を生成（z値を保持）
   const scored: ScoredUtterance[] = candidates
     .map((u, i) => ({
       ...u,
       rank: 0,
       score: details[i].finalScore,
-      p: pvals[i],
-      detail: { ...details[i], pValue: pvals[i] },
+      z: zScores[i],
+      detail: { ...details[i], zScore: zScores[i] },
     }))
     .sort((a, b) => b.score - a.score);
 
@@ -80,8 +76,11 @@ export const analyze = async (
     scored[i].rank = i + 1;
   }
 
-  // 単純なp値による閾値フィルタリング（BH-FDRなし）
-  const important = scored.filter(s => s.p !== undefined && s.p < o.fdrAlpha);
+  // z値ベースの統一判定
+  // z > zThreshold を重要とみなす
+  const important = scored.filter(
+    s => s.detail.zScore !== undefined && s.detail.zScore > o.zThreshold
+  );
 
   return { important, scored, nullScores };
 };

@@ -12,7 +12,7 @@ type AnalysisParameters = {
   k: number;
   halfLifeTurns: number;
   nullSamples: number;
-  fdrAlpha: number;
+  zThreshold: number;
 };
 
 type DebugParameterControlProps = {
@@ -25,7 +25,7 @@ const DEFAULT_PARAMS: AnalysisParameters = {
   k: defaultOptions.k,
   halfLifeTurns: defaultOptions.halfLifeTurns,
   nullSamples: defaultOptions.nullSamples,
-  fdrAlpha: defaultOptions.fdrAlpha,
+  zThreshold: defaultOptions.zThreshold,
 };
 
 export const DebugParameterControl = ({
@@ -84,9 +84,9 @@ export const DebugParameterControl = ({
           </div>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded">
-          <div className="text-xs text-slate-500 dark:text-slate-400">FDR閾値</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">z値閾値</div>
           <div className="text-lg font-bold text-slate-800 dark:text-slate-100">
-            {params.fdrAlpha.toFixed(2)}
+            {params.zThreshold.toFixed(2)}
           </div>
         </div>
       </div>
@@ -156,23 +156,24 @@ export const DebugParameterControl = ({
             </div>
           </div>
 
-          {/* fdrAlpha: FDR閾値 */}
+          {/* zThreshold: z値閾値 */}
           <div>
             <div className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              <span className="font-mono">fdrAlpha</span> - BH-FDR閾値: {params.fdrAlpha.toFixed(2)}
+              <span className="font-mono">zThreshold</span> - z値閾値:{' '}
+              {params.zThreshold.toFixed(2)}
             </div>
             <input
               type="range"
-              min="0.01"
-              max="0.2"
-              step="0.01"
-              value={params.fdrAlpha}
-              onChange={e => handleChange('fdrAlpha', Number.parseFloat(e.target.value))}
+              min="0.0"
+              max="3.0"
+              step="0.1"
+              value={params.zThreshold}
+              onChange={e => handleChange('zThreshold', Number.parseFloat(e.target.value))}
               className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
-              <span>0.01</span>
-              <span>0.20</span>
+              <span>0.0</span>
+              <span>3.0</span>
             </div>
           </div>
         </div>
@@ -193,7 +194,7 @@ export const DebugParameterControl = ({
               <span className="font-mono">nullSamples</span>: 統計的有意性検定用の帰無サンプル数
             </li>
             <li>
-              <span className="font-mono">fdrAlpha</span>: Benjamini-Hochberg FDR制御の有意水準
+              <span className="font-mono">zThreshold</span>: z値閾値（この値以上を重要とみなす）
             </li>
           </ul>
         </div>

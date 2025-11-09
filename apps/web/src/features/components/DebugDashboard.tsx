@@ -33,7 +33,7 @@ const DebugDashboardContent = () => {
     k: defaultOptions.k,
     halfLifeTurns: defaultOptions.halfLifeTurns,
     nullSamples: defaultOptions.nullSamples,
-    fdrAlpha: defaultOptions.fdrAlpha,
+    zThreshold: defaultOptions.zThreshold,
   });
 
   // Stream Hook with Supabase

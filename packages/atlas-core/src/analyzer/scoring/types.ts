@@ -21,8 +21,8 @@ export type ScoreDetail = {
   rawScore: number;
   /** 最終スコア（減衰適用後） */
   finalScore: number;
-  /** p値（帰無分布から算出） */
-  pValue?: number;
+  /** z値（正規化されたスコア） */
+  zScore?: number;
 };
 
 /**
@@ -33,8 +33,8 @@ export type ScoredUtterance = Utterance & {
   rank: number;
   /** スコア（finalScore） */
   score: number;
-  /** p値 */
-  p?: number;
+  /** z値 */
+  z?: number;
   /** スコア詳細 */
   detail: ScoreDetail;
 };

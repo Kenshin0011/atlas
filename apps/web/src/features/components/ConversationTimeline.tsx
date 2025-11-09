@@ -24,43 +24,93 @@ export const ConversationTimeline = ({
   dependencies,
   currentUtterance,
 }: ConversationTimelineProps) => {
-  const [showOnlyImportant, setShowOnlyImportant] = useState(false);
+  const [showOnlyRelevant, setShowOnlyRelevant] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevDialogueLengthRef = useRef(dialogue.length);
 
-  // 重要発話のリスト
-  const importantUtterances = useMemo(() => {
-    const important: Utterance[] = [];
-    for (const utterance of dialogue) {
-      const score = scores.get(utterance.id);
-      if (score?.isImportant) {
-        important.push(utterance);
+  // 再帰的に依存関係を辿る関数（共通）
+  const getAllDependencies = useCallback(
+    (uttId: number, visited = new Set<number>()): number[] => {
+      if (visited.has(uttId)) return [];
+      visited.add(uttId);
+
+      // この発話に依存している発話を探す
+      const directDeps = dependencies.filter(edge => edge.to === uttId).map(edge => edge.from);
+
+      // 再帰的にさらに依存を辿る
+      const allDeps: number[] = [];
+      for (const depId of directDeps) {
+        allDeps.push(depId);
+        allDeps.push(...getAllDependencies(depId, visited));
       }
-    }
-    return important;
-  }, [dialogue, scores]);
 
-  // 現在の発話が依存している重要発話のIDセット
+      return allDeps;
+    },
+    [dependencies]
+  );
+
+  // 現在の発話が依存している重要発話のIDセット（再帰的に取得）
   const currentDependencies = useMemo(() => {
-    if (!currentUtterance) return new Set<number>();
+    if (!currentUtterance) {
+      console.log('[ConversationTimeline] No current utterance');
+      return new Set<number>();
+    }
 
-    // 現在の発話を依存先(to)とするエッジの依存元(from)を集める
-    const dependencyIds = dependencies
-      .filter(edge => edge.to === currentUtterance.id)
-      .map(edge => edge.from);
+    console.log('[ConversationTimeline] Current utterance:', currentUtterance.id);
+    console.log('[ConversationTimeline] All dependencies:', dependencies);
 
-    return new Set(dependencyIds);
-  }, [currentUtterance, dependencies]);
+    // 再帰的に全ての依存を取得
+    const allDepIds = getAllDependencies(currentUtterance.id);
+    console.log('[ConversationTimeline] All dependency IDs (recursive):', allDepIds);
+
+    return new Set(allDepIds);
+  }, [currentUtterance, dependencies, getAllDependencies]);
+
+  // 依存関係チェーンを構築（例: #5→#4→#1）
+  const dependencyChain = useMemo(() => {
+    if (!currentUtterance || currentDependencies.size === 0) return null;
+
+    console.log('[ConversationTimeline] Building dependency chain:', {
+      currentUtterance: currentUtterance.id,
+      currentDependencies: Array.from(currentDependencies),
+    });
+
+    // 発話順にソート（古い順）
+    const sortedDeps = Array.from(currentDependencies)
+      .map(id => dialogue.find(u => u.id === id))
+      .filter((u): u is Utterance => u !== undefined)
+      .sort((a, b) => {
+        const indexA = dialogue.findIndex(u => u.id === a.id);
+        const indexB = dialogue.findIndex(u => u.id === b.id);
+        return indexA - indexB;
+      });
+
+    // 発話番号のリストを作成
+    const chain = sortedDeps.map(u => dialogue.findIndex(d => d.id === u.id) + 1);
+    const currentIndex = dialogue.findIndex(d => d.id === currentUtterance.id) + 1;
+
+    console.log('[ConversationTimeline] Dependency chain result:', {
+      chain,
+      currentIndex,
+    });
+
+    return { chain, currentIndex };
+  }, [currentUtterance, currentDependencies, dialogue]);
 
   // 表示する発話リスト
   const displayDialogue = useMemo(() => {
-    if (showOnlyImportant) {
-      return importantUtterances;
+    if (showOnlyRelevant) {
+      // 現在の発話 + 関連する重要発話のみ
+      const relevantIds = new Set([
+        ...(currentUtterance ? [currentUtterance.id] : []),
+        ...currentDependencies,
+      ]);
+      return dialogue.filter(u => relevantIds.has(u.id));
     }
     return dialogue;
-  }, [showOnlyImportant, importantUtterances, dialogue]);
+  }, [showOnlyRelevant, dialogue, currentUtterance, currentDependencies]);
 
   // スクロール位置を監視
   const handleScroll = () => {
@@ -108,66 +158,61 @@ export const ConversationTimeline = ({
       {/* ヘッダー */}
       <div className="flex-none px-4 py-2 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
               会話タイムライン
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               全 {dialogue.length} 発話
-              {importantUtterances.length > 0 && (
+              {currentDependencies.size > 0 && (
                 <>
                   {' '}
-                  ・ 重要発話{' '}
+                  ・ 関連{' '}
                   <span className="font-semibold text-orange-600 dark:text-orange-400">
-                    {importantUtterances.length}
+                    {currentDependencies.size}
                   </span>{' '}
                   件
                 </>
               )}
             </p>
+            {/* 依存関係チェーン表示 */}
+            {dependencyChain && (
+              <div className="mt-2 flex items-center gap-1 text-xs">
+                <span className="text-slate-500 dark:text-slate-400">依存:</span>
+                <div className="flex items-center gap-1 font-mono font-semibold">
+                  {dependencyChain.chain.map((num, idx) => (
+                    <span key={num} className="flex items-center gap-1">
+                      <span className="text-orange-600 dark:text-orange-400">#{num}</span>
+                      {idx < dependencyChain.chain.length - 1 && (
+                        <span className="text-slate-400">→</span>
+                      )}
+                    </span>
+                  ))}
+                  <span className="text-slate-400">→</span>
+                  <span className="text-blue-600 dark:text-blue-400">
+                    #{dependencyChain.currentIndex}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* フィルタートグル */}
-          {importantUtterances.length > 0 && (
+          {currentDependencies.size > 0 && (
             <button
               type="button"
-              onClick={() => setShowOnlyImportant(!showOnlyImportant)}
+              onClick={() => setShowOnlyRelevant(!showOnlyRelevant)}
               className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                showOnlyImportant
+                showOnlyRelevant
                   ? 'bg-orange-500 text-white'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
-              {showOnlyImportant ? '✓ 重要のみ' : '全て'}
+              {showOnlyRelevant ? '✓ 関連のみ' : '全て'}
             </button>
           )}
         </div>
       </div>
-
-      {/* サマリーカード（重要発話がある場合） */}
-      {importantUtterances.length > 0 && currentDependencies.size > 0 && (
-        <div className="flex-none px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800">
-          <div className="flex items-center gap-2">
-            <svg
-              className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <title>情報</title>
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <p className="text-xs text-blue-800 dark:text-blue-200">
-              💡 {currentDependencies.size}件の関連発話
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* タイムライン */}
       <div className="flex-1 relative overflow-hidden">
@@ -178,7 +223,7 @@ export const ConversationTimeline = ({
         >
           {displayDialogue.length === 0 ? (
             <div className="text-center py-12 text-slate-400 dark:text-slate-500">
-              {showOnlyImportant ? '重要発話がまだありません' : 'まだ発話がありません'}
+              {showOnlyRelevant ? '関連発話がありません' : 'まだ発話がありません'}
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -199,7 +244,7 @@ export const ConversationTimeline = ({
                           : isDependency
                             ? 'bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-400 dark:border-orange-600'
                             : isImportant
-                              ? 'bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-300 dark:border-yellow-700'
+                              ? 'bg-purple-50 dark:bg-purple-900/20 border border-purple-300 dark:border-purple-700'
                               : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'
                       }`}
                     >
@@ -223,8 +268,8 @@ export const ConversationTimeline = ({
                             </span>
                           )}
                           {isImportant && !isDependency && !isCurrent && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-yellow-500 text-white rounded-full font-medium">
-                              重要
+                            <span className="text-[10px] px-1.5 py-0.5 bg-purple-500 text-white rounded-full font-medium">
+                              ●
                             </span>
                           )}
                         </div>
@@ -289,10 +334,10 @@ export const ConversationTimeline = ({
             <span className="text-slate-700 dark:text-slate-300">関連</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="px-1.5 py-0.5 bg-yellow-500 text-white rounded-full text-[10px]">
-              重要
+            <span className="px-1.5 py-0.5 bg-purple-500 text-white rounded-full text-[10px]">
+              ●
             </span>
-            <span className="text-slate-700 dark:text-slate-300">その他</span>
+            <span className="text-slate-700 dark:text-slate-300">過去の関連発言記録</span>
           </div>
         </div>
       </div>

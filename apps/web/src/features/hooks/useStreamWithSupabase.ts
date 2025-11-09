@@ -61,7 +61,7 @@ type UseStreamWithSupabaseOptions = {
     k?: number;
     halfLifeTurns?: number;
     nullSamples?: number;
-    fdrAlpha?: number;
+    zThreshold?: number;
   };
 };
 
@@ -292,7 +292,7 @@ export const useStreamWithSupabase = (
           k: analysisOptions.k ?? defaultOptions.k,
           halfLifeTurns: analysisOptions.halfLifeTurns ?? defaultOptions.halfLifeTurns,
           nullSamples: analysisOptions.nullSamples ?? defaultOptions.nullSamples,
-          fdrAlpha: analysisOptions.fdrAlpha ?? defaultOptions.fdrAlpha,
+          zThreshold: analysisOptions.zThreshold ?? defaultOptions.zThreshold,
         });
 
         // スコアマップ更新
@@ -311,7 +311,7 @@ export const useStreamWithSupabase = (
             const score: Score = {
               utteranceId: id,
               score: item.score,
-              pValue: item.p,
+              zScore: item.z,
               rank: item.rank,
               isImportant: isImportant,
               detail: item.detail,
@@ -340,7 +340,7 @@ export const useStreamWithSupabase = (
             const score: Score = {
               utteranceId: id,
               score: item.score,
-              pValue: item.p,
+              zScore: item.z,
               rank: item.rank,
               isImportant: true,
               detail: item.detail,
