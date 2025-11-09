@@ -15,18 +15,22 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { emailToUsername } from '@/lib/supabase/username';
 import { useStreamWithSupabase } from '../hooks/useStreamWithSupabase';
 import { ConversationLayout } from './ConversationLayout';
+import { ConversationTimeline } from './ConversationTimeline';
 import { ImportantHighlights } from './ImportantHighlights';
+import { SpeechRecognitionIndicator } from './SpeechRecognitionIndicator';
 
 type AssistantProps = {
   boothId: string;
 };
 
 type InputMode = 'speech' | 'text';
+type ViewMode = 'highlights' | 'timeline';
 
 export const Assistant = ({ boothId }: AssistantProps) => {
   const { user, loading: authLoading, signOut } = useAuth();
   const { isAdmin: isAdminUser } = useAdmin();
   const [inputMode, setInputMode] = useState<InputMode>('speech');
+  const [viewMode, setViewMode] = useState<ViewMode>('highlights');
   const [textInput, setTextInput] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
 
@@ -201,7 +205,7 @@ export const Assistant = ({ boothId }: AssistantProps) => {
                 </button>
               )}
 
-              {/* モード切り替えボタン */}
+              {/* 入力モード切り替えボタン */}
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
                 <button
                   type="button"
@@ -225,6 +229,32 @@ export const Assistant = ({ boothId }: AssistantProps) => {
                   }`}
                 >
                   ⌨️ テキスト
+                </button>
+              </div>
+
+              {/* ビュー切り替えボタン */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('highlights')}
+                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                    viewMode === 'highlights'
+                      ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-100 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  🔗 チェイン
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('timeline')}
+                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                    viewMode === 'timeline'
+                      ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-100 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  📜 タイムライン
                 </button>
               </div>
 
@@ -306,44 +336,52 @@ export const Assistant = ({ boothId }: AssistantProps) => {
             </form>
           )}
 
-          {/* 左右分割レイアウト */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-            {/* 左側：重要発言チェイン */}
-            <div className="order-1 lg:order-1">
-              <ImportantHighlights
-                dependencies={dependencies}
-                dialogue={dialogue}
-                scores={scores}
-              />
-            </div>
+          {/* ビュー切り替え */}
+          {viewMode === 'highlights' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              {/* 左側：重要発言チェイン */}
+              <div className="order-1 lg:order-1">
+                <ImportantHighlights
+                  dependencies={dependencies}
+                  dialogue={dialogue}
+                  scores={scores}
+                />
+              </div>
 
-            {/* 右側：現在の発言 */}
-            <div className="order-2 lg:order-2">
-              <ConversationLayout dialogue={dialogue} scores={scores} isAnalyzing={isAnalyzing} />
+              {/* 右側：現在の発言 */}
+              <div className="order-2 lg:order-2">
+                <ConversationLayout dialogue={dialogue} scores={scores} isAnalyzing={isAnalyzing} />
+
+                <div className="mt-4">
+                  <SpeechRecognitionIndicator
+                    isListening={isListening}
+                    interimTranscript={interimTranscript}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="h-[calc(100vh-280px)]">
+                <ConversationTimeline
+                  dialogue={dialogue}
+                  scores={scores}
+                  dependencies={dependencies}
+                  currentUtterance={dialogue[dialogue.length - 1]}
+                />
+              </div>
+              {isListening && (
+                <div className="mt-4">
+                  <SpeechRecognitionIndicator
+                    isListening={isListening}
+                    interimTranscript={interimTranscript}
+                  />
+                </div>
+              )}
+            </>
+          )}
         </div>
       </main>
-
-      {/* リスニング状態インジケーター＆リアルタイム文字起こし */}
-      {isListening && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-3xl px-4">
-          <div className="bg-green-600 text-white px-8 py-6 rounded-2xl shadow-2xl">
-            <div className="flex items-center gap-3 mb-3">
-              <svg className="w-6 h-6 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
-                <title>録音中</title>
-                <circle cx="10" cy="10" r="8" />
-              </svg>
-              <span className="text-base font-bold">音声認識中...</span>
-            </div>
-            <div className="bg-white/20 rounded-xl px-6 py-4 min-h-[60px] flex items-center">
-              <p className="text-white text-xl leading-relaxed font-medium">
-                {interimTranscript || '話してください...'}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
