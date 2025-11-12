@@ -22,6 +22,21 @@ export const DebugConversationView = ({
 }: DebugConversationViewProps) => {
   // 選択された発話ID
   const [selectedUtteranceId, setSelectedUtteranceId] = useState<number | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+  // 展開された発話IDのセット（詳細表示用）
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  const toggleExpanded = (id: number) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   // アンカー（他から依存されている）のIDセット
   const anchorIds = useMemo(() => {
@@ -47,6 +62,84 @@ export const DebugConversationView = ({
       .map(id => dialogue.find(u => u.id === id))
       .filter((u): u is Utterance => u !== undefined);
   }, [selectedUtteranceId, dependencies, dialogue]);
+
+  // エクスポート用データを生成
+  const exportData = useMemo(() => {
+    return dialogue.map(utt => {
+      const score = scores.get(utt.id);
+      return {
+        id: utt.id,
+        speaker: utt.speaker,
+        text: utt.text,
+        timestamp: utt.timestamp,
+        score: score
+          ? {
+              score: score.score,
+              zScore: score.zScore,
+              rank: score.rank,
+              isImportant: score.isImportant,
+              detail: score.detail,
+            }
+          : null,
+        dependencies: {
+          isAnchor: anchorIds.has(utt.id),
+          isDependent: dependentIds.has(utt.id),
+          anchors: dependencies.filter(d => d.to === utt.id).map(d => d.from),
+        },
+      };
+    });
+  }, [dialogue, scores, dependencies, anchorIds, dependentIds]);
+
+  // クリップボードにコピー
+  const handleCopyToClipboard = () => {
+    const jsonString = JSON.stringify(exportData, null, 2);
+    navigator.clipboard
+      .writeText(jsonString)
+      .then(() => {
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy:', err);
+      });
+  };
+
+  // TSV形式でコピー（スプレッドシート用）
+  const handleCopyAsTSV = () => {
+    const headers = [
+      'ID',
+      'Speaker',
+      'Text',
+      'Score',
+      'z-score',
+      'Rank',
+      'IsImportant',
+      'IsAnchor',
+      'IsDependent',
+    ];
+    const rows = exportData.map(item => [
+      item.id,
+      item.speaker,
+      item.text,
+      item.score?.score.toFixed(6) || '',
+      item.score?.zScore?.toFixed(6) || '',
+      item.score?.rank || '',
+      item.score?.isImportant ? 'TRUE' : 'FALSE',
+      item.dependencies.isAnchor ? 'TRUE' : 'FALSE',
+      item.dependencies.isDependent ? 'TRUE' : 'FALSE',
+    ]);
+    const tsvString = [headers, ...rows].map(row => row.join('\t')).join('\n');
+
+    navigator.clipboard
+      .writeText(tsvString)
+      .then(() => {
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy:', err);
+      });
+  };
   if (dialogue.length === 0) {
     return (
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6">
@@ -72,15 +165,69 @@ export const DebugConversationView = ({
         <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
           💬 会話履歴 ({dialogue.length} 発話)
         </h2>
-        {selectedUtteranceId !== null && (
+        <div className="flex items-center gap-2">
+          {/* エクスポートボタン */}
           <button
             type="button"
-            onClick={() => setSelectedUtteranceId(null)}
-            className="text-xs px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+            onClick={handleCopyToClipboard}
+            className="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors flex items-center gap-1.5"
+            title="JSON形式でコピー"
           >
-            選択解除
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              role="img"
+              aria-label="コピー"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+            JSON
           </button>
-        )}
+          <button
+            type="button"
+            onClick={handleCopyAsTSV}
+            className="text-xs px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded transition-colors flex items-center gap-1.5"
+            title="TSV形式でコピー（スプレッドシート用）"
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              role="img"
+              aria-label="表"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+            TSV
+          </button>
+          {copySuccess && (
+            <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+              ✓ コピーしました
+            </span>
+          )}
+          {selectedUtteranceId !== null && (
+            <button
+              type="button"
+              onClick={() => setSelectedUtteranceId(null)}
+              className="text-xs px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+            >
+              選択解除
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 選択された発話の重要な発言チェイン表示 */}
@@ -130,6 +277,7 @@ export const DebugConversationView = ({
           const isAnchor = anchorIds.has(utt.id);
           const isDependent = dependentIds.has(utt.id);
           const isSelected = selectedUtteranceId === utt.id;
+          const isExpanded = expandedIds.has(utt.id);
 
           // スコアの相対的な強度（0-100%）
           const scoreIntensity = hasScore ? ((score.score - minScore) / scoreRange) * 100 : 0;
@@ -146,22 +294,24 @@ export const DebugConversationView = ({
                   : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/30';
 
           return (
-            <button
-              type="button"
+            <div
               key={utt.id}
-              onClick={() => setSelectedUtteranceId(isSelected ? null : utt.id)}
-              className={`w-full p-3 rounded-lg border-l-4 transition-all text-left hover:shadow-md ${colorClasses} ${
-                isDependent ? 'cursor-pointer' : 'cursor-default'
-              }`}
-              disabled={!isDependent}
+              className={`w-full p-3 rounded-lg border-l-4 transition-all ${colorClasses}`}
             >
               <div className="flex items-start justify-between gap-3">
                 {/* 左側：発話内容 */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        isDependent && setSelectedUtteranceId(isSelected ? null : utt.id)
+                      }
+                      disabled={!isDependent}
+                      className={`text-xs font-mono text-slate-500 dark:text-slate-400 ${isDependent ? 'cursor-pointer hover:text-purple-600' : 'cursor-default'}`}
+                    >
                       #{index + 1}
-                    </span>
+                    </button>
                     <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                       {utt.speaker}
                     </span>
@@ -170,6 +320,15 @@ export const DebugConversationView = ({
                       <span className="text-xs text-green-600 dark:text-green-400">
                         📎 依存あり
                       </span>
+                    )}
+                    {hasScore && (
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(utt.id)}
+                        className="text-xs px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                      >
+                        {isExpanded ? '詳細を隠す' : '詳細を表示'}
+                      </button>
                     )}
                   </div>
                   <p className="text-sm text-slate-800 dark:text-slate-200 break-words">
@@ -225,7 +384,73 @@ export const DebugConversationView = ({
                   />
                 </div>
               )}
-            </button>
+
+              {/* 詳細情報の展開表示 */}
+              {hasScore && isExpanded && score.detail && (
+                <div className="mt-3 p-3 bg-slate-100 dark:bg-slate-900/50 rounded text-xs font-mono space-y-1">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400">baseLoss:</span>
+                      <span className="ml-2 text-slate-800 dark:text-slate-200">
+                        {score.detail.baseLoss?.toFixed(6) || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400">maskedLoss:</span>
+                      <span className="ml-2 text-slate-800 dark:text-slate-200">
+                        {score.detail.maskedLoss?.toFixed(6) || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400">
+                        deltaLoss (context):
+                      </span>
+                      <span className="ml-2 text-slate-800 dark:text-slate-200">
+                        {score.detail.deltaLoss?.toFixed(6) || 'N/A'}
+                      </span>
+                    </div>
+                    {/* {score.detail.individualDelta !== undefined && (
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400">individualDelta:</span>
+                        <span className="ml-2 text-blue-600 dark:text-blue-400 font-semibold">
+                          {score.detail.individualDelta.toFixed(6)}
+                        </span>
+                      </div>
+                    )} */}
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400">ageWeight:</span>
+                      <span className="ml-2 text-slate-800 dark:text-slate-200">
+                        {score.detail.ageWeight?.toFixed(6) || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400">
+                        rawScore (composite):
+                      </span>
+                      <span className="ml-2 text-slate-800 dark:text-slate-200">
+                        {score.detail.rawScore?.toFixed(6) || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400">finalScore:</span>
+                      <span className="ml-2 text-slate-800 dark:text-slate-200">
+                        {score.detail.finalScore?.toFixed(6) || 'N/A'}
+                      </span>
+                    </div>
+                    {/* {score.detail.zScore !== undefined && (
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400">zScore:</span>
+                        <span
+                          className={`ml-2 font-bold ${score.detail.zScore > 1.0 ? 'text-green-600 dark:text-green-400' : 'text-slate-800 dark:text-slate-200'}`}
+                        >
+                          {score.detail.zScore.toFixed(6)}
+                        </span>
+                      </div>
+                    )} */}
+                  </div>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
