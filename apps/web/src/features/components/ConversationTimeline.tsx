@@ -198,19 +198,17 @@ export const ConversationTimeline = ({
           </div>
 
           {/* フィルタートグル */}
-          {currentDependencies.size > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowOnlyRelevant(!showOnlyRelevant)}
-              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                showOnlyRelevant
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              {showOnlyRelevant ? '✓ 関連のみ' : '全て'}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowOnlyRelevant(!showOnlyRelevant)}
+            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+              showOnlyRelevant
+                ? 'bg-orange-500 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            {showOnlyRelevant ? '✓ 関連のみ' : '全て'}
+          </button>
         </div>
       </div>
 
