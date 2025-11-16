@@ -16,6 +16,7 @@ type ConversationTimelineProps = {
   scores: Map<number, Score>;
   dependencies: DependencyEdge[];
   currentUtterance?: Utterance | null;
+  mode?: 'alpha' | 'beta'; // α版: 依存関係表示, β版: 重要発話のみ
 };
 
 export const ConversationTimeline = ({
@@ -23,12 +24,24 @@ export const ConversationTimeline = ({
   scores,
   dependencies,
   currentUtterance,
+  mode = 'alpha',
 }: ConversationTimelineProps) => {
+  const isBetaMode = mode === 'beta';
+
+  // α版・β版ともに初期状態は全て表示
   const [showOnlyRelevant, setShowOnlyRelevant] = useState(false);
+  const [showPastImportant, setShowPastImportant] = useState(true);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevDialogueLengthRef = useRef(dialogue.length);
+
+  // 表示用の依存関係（変更検出用）
+  const [displayDependencies, setDisplayDependencies] = useState<Set<number>>(new Set());
+  const prevDependenciesRef = useRef<Set<number>>(new Set());
+
+  // 表示用の発話リスト（固定）
+  const [displayDialogue, setDisplayDialogue] = useState<Utterance[]>(dialogue);
 
   // 再帰的に依存関係を辿る関数（共通）
   const getAllDependencies = useCallback(
@@ -52,7 +65,18 @@ export const ConversationTimeline = ({
   );
 
   // 現在の発話が依存している重要発話のIDセット（再帰的に取得）
+  // β版では最新の重要発話のみをオレンジにする
   const currentDependencies = useMemo(() => {
+    if (isBetaMode) {
+      // β版：最新の重要発話のみをオレンジ色で表示（現在の関連語）
+      const importantUtterances = dialogue.filter(u => scores.get(u.id)?.isImportant);
+      if (importantUtterances.length === 0) return new Set<number>();
+
+      // 最新の重要発話のみ
+      const latestImportant = importantUtterances[importantUtterances.length - 1];
+      return new Set([latestImportant.id]);
+    }
+
     if (!currentUtterance) {
       console.log('[ConversationTimeline] No current utterance');
       return new Set<number>();
@@ -66,10 +90,105 @@ export const ConversationTimeline = ({
     console.log('[ConversationTimeline] All dependency IDs (recursive):', allDepIds);
 
     return new Set(allDepIds);
-  }, [currentUtterance, dependencies, getAllDependencies]);
+  }, [isBetaMode, dialogue, scores, currentUtterance, dependencies, getAllDependencies]);
 
-  // 依存関係チェーンを構築（例: #5→#4→#1）
+  // 依存関係が変わったときだけ表示を更新
+  useEffect(() => {
+    // 依存関係の変更を検出（β版では常に空）
+    const hasChanged =
+      currentDependencies.size !== prevDependenciesRef.current.size ||
+      Array.from(currentDependencies).some(id => !prevDependenciesRef.current.has(id));
+
+    if (hasChanged) {
+      console.log('[ConversationTimeline] Dependencies changed, updating display');
+      setDisplayDependencies(new Set(currentDependencies));
+      prevDependenciesRef.current = new Set(currentDependencies);
+
+      // displayDialogueも更新
+      if (showOnlyRelevant) {
+        const relevantIds = new Set([
+          ...(currentUtterance ? [currentUtterance.id] : []),
+          ...currentDependencies, // β版では空なのでcurrentUtteranceのみ
+        ]);
+
+        // 紫色（過去の重要発話）も含める場合
+        if (showPastImportant) {
+          const allImportantIds = dialogue
+            .filter(u => scores.get(u.id)?.isImportant)
+            .map(u => u.id);
+          for (const id of allImportantIds) {
+            relevantIds.add(id);
+          }
+        }
+
+        setDisplayDialogue(dialogue.filter(u => relevantIds.has(u.id)));
+      }
+    } else {
+      console.log('[ConversationTimeline] Dependencies unchanged, keeping display');
+    }
+  }, [
+    currentDependencies,
+    dialogue,
+    currentUtterance,
+    showOnlyRelevant,
+    showPastImportant,
+    scores,
+  ]);
+
+  // 「全て」モードではdialogueの変更を反映
+  useEffect(() => {
+    if (!showOnlyRelevant) {
+      setDisplayDialogue(dialogue);
+    }
+  }, [dialogue, showOnlyRelevant]);
+
+  // フィルタートグルまたは紫色トグルが変更されたとき
+  const prevShowOnlyRelevantRef = useRef(showOnlyRelevant);
+  const prevShowPastImportantRef = useRef(showPastImportant);
+  useEffect(() => {
+    // showOnlyRelevantまたはshowPastImportantが実際に変わったときだけ実行
+    if (
+      prevShowOnlyRelevantRef.current !== showOnlyRelevant ||
+      prevShowPastImportantRef.current !== showPastImportant
+    ) {
+      prevShowOnlyRelevantRef.current = showOnlyRelevant;
+      prevShowPastImportantRef.current = showPastImportant;
+
+      if (showOnlyRelevant) {
+        // 関連のみモードに切り替え：現在のdisplayDependenciesでフィルタ（β版では空）
+        const relevantIds = new Set([
+          ...(currentUtterance ? [currentUtterance.id] : []),
+          ...displayDependencies, // β版では空なのでcurrentUtteranceのみ
+        ]);
+
+        // 紫色（過去の重要発話）も含める場合
+        if (showPastImportant) {
+          const allImportantIds = dialogue
+            .filter(u => scores.get(u.id)?.isImportant)
+            .map(u => u.id);
+          for (const id of allImportantIds) {
+            relevantIds.add(id);
+          }
+        }
+
+        setDisplayDialogue(dialogue.filter(u => relevantIds.has(u.id)));
+      } else {
+        // 全てモードに切り替え：全て表示
+        setDisplayDialogue(dialogue);
+      }
+    }
+  }, [
+    showOnlyRelevant,
+    showPastImportant,
+    currentUtterance,
+    displayDependencies,
+    dialogue,
+    scores,
+  ]);
+
+  // 依存関係チェーンを構築（例: #5→#4→#1）（β版では非表示）
   const dependencyChain = useMemo(() => {
+    if (isBetaMode) return null; // β版では依存関係チェーンを表示しない
     if (!currentUtterance || currentDependencies.size === 0) return null;
 
     console.log('[ConversationTimeline] Building dependency chain:', {
@@ -97,20 +216,7 @@ export const ConversationTimeline = ({
     });
 
     return { chain, currentIndex };
-  }, [currentUtterance, currentDependencies, dialogue]);
-
-  // 表示する発話リスト
-  const displayDialogue = useMemo(() => {
-    if (showOnlyRelevant) {
-      // 現在の発話 + 関連する重要発話のみ
-      const relevantIds = new Set([
-        ...(currentUtterance ? [currentUtterance.id] : []),
-        ...currentDependencies,
-      ]);
-      return dialogue.filter(u => relevantIds.has(u.id));
-    }
-    return dialogue;
-  }, [showOnlyRelevant, dialogue, currentUtterance, currentDependencies]);
+  }, [isBetaMode, currentUtterance, currentDependencies, dialogue]);
 
   // スクロール位置を監視
   const handleScroll = () => {
@@ -164,19 +270,19 @@ export const ConversationTimeline = ({
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               全 {dialogue.length} 発話
-              {currentDependencies.size > 0 && (
+              {displayDependencies.size > 0 && (
                 <>
                   {' '}
                   ・ 関連{' '}
                   <span className="font-semibold text-orange-600 dark:text-orange-400">
-                    {currentDependencies.size}
+                    {displayDependencies.size}
                   </span>{' '}
                   件
                 </>
               )}
             </p>
-            {/* 依存関係チェーン表示 */}
-            {dependencyChain && (
+            {/* 依存関係チェーン表示（α版のみ） */}
+            {!isBetaMode && dependencyChain && (
               <div className="mt-2 flex items-center gap-1 text-xs">
                 <span className="text-slate-500 dark:text-slate-400">依存:</span>
                 <div className="flex items-center gap-1 font-mono font-semibold">
@@ -197,18 +303,36 @@ export const ConversationTimeline = ({
             )}
           </div>
 
-          {/* フィルタートグル */}
-          <button
-            type="button"
-            onClick={() => setShowOnlyRelevant(!showOnlyRelevant)}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-              showOnlyRelevant
-                ? 'bg-orange-500 text-white'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-            }`}
-          >
-            {showOnlyRelevant ? '✓ 関連のみ' : '全て'}
-          </button>
+          {/* コントロールボタン */}
+          <div className="flex items-center gap-2">
+            {/* 過去の重要発話トグル（関連のみモードの時だけ表示） */}
+            {showOnlyRelevant && (
+              <button
+                type="button"
+                onClick={() => setShowPastImportant(!showPastImportant)}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  showPastImportant
+                    ? 'bg-purple-500 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                {showPastImportant ? '✓ 過去の重要語' : '過去の重要語'}
+              </button>
+            )}
+
+            {/* フィルタートグル */}
+            <button
+              type="button"
+              onClick={() => setShowOnlyRelevant(!showOnlyRelevant)}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                showOnlyRelevant
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              }`}
+            >
+              {showOnlyRelevant ? '✓ 関連のみ' : '全て'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -229,7 +353,7 @@ export const ConversationTimeline = ({
                 const score = scores.get(utterance.id);
                 const isImportant = score?.isImportant || false;
                 const isCurrent = currentUtterance?.id === utterance.id;
-                const isDependency = currentDependencies.has(utterance.id);
+                const isDependency = displayDependencies.has(utterance.id);
                 const originalIndex = dialogue.findIndex(u => u.id === utterance.id);
 
                 return (

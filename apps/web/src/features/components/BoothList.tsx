@@ -27,6 +27,7 @@ export const BoothList = () => {
   const { isAdmin: isAdminUser } = useAdmin();
   const boothNameId = useId();
   const [boothName, setBoothName] = useState('');
+  const [uiMode, setUiMode] = useState<'alpha' | 'beta'>('alpha');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingBooths, setExistingBooths] = useState<Session[]>([]);
@@ -65,6 +66,9 @@ export const BoothList = () => {
     try {
       const boothInfo = {
         name: boothName,
+        experimentParams: {
+          uiMode,
+        },
       };
 
       const sessionId = await createSessionAction(boothInfo);
@@ -154,6 +158,44 @@ export const BoothList = () => {
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例：実験A - 条件1"
               />
+            </div>
+
+            <div>
+              <div className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                表示モード（実験設定）
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="uiMode"
+                    value="alpha"
+                    checked={uiMode === 'alpha'}
+                    onChange={e => setUiMode(e.target.value as 'alpha')}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      α
+                    </span>
+                  </div>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="uiMode"
+                    value="beta"
+                    checked={uiMode === 'beta'}
+                    onChange={e => setUiMode(e.target.value as 'beta')}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      β
+                    </span>
+                  </div>
+                </label>
+              </div>
             </div>
 
             <button

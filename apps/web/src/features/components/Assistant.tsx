@@ -44,6 +44,10 @@ export const Assistant = ({ boothId }: AssistantProps) => {
       },
     });
 
+  // UIモードを取得
+  const uiMode =
+    (sessionInfo?.experimentParams as { uiMode?: 'alpha' | 'beta' })?.uiMode || 'alpha';
+
   // 音声認識コールバック
   const handleTranscript = useCallback(
     (transcript: string, isFinal: boolean) => {
@@ -146,6 +150,9 @@ export const Assistant = ({ boothId }: AssistantProps) => {
                   <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <span>🟢</span>
                     <span>{sessionInfo?.boothName || 'Atlas Assistant'}</span>
+                    <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
+                      ({uiMode === 'beta' ? 'β' : 'α'})
+                    </span>
                   </h1>
                   {sessionInfo?.tags && sessionInfo.tags.length > 0 && (
                     <div className="flex gap-1 mt-1">
@@ -313,6 +320,7 @@ export const Assistant = ({ boothId }: AssistantProps) => {
               scores={scores}
               dependencies={dependencies}
               currentUtterance={dialogue[dialogue.length - 1]}
+              mode={uiMode}
             />
           </div>
           {isListening && (
