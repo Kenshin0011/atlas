@@ -9,4 +9,3 @@ export { DebugParameterControl } from './DebugParameterControl';
 export { DebugScoreDetails } from './DebugScoreDetails';
 export { DependencyArrow } from './DependencyArrow';
 export { DependencyMinimap } from './DependencyMinimap';
-export { ImportantHighlights } from './ImportantHighlights';
