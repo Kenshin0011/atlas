@@ -154,18 +154,6 @@ export const Assistant = ({ boothId }: AssistantProps) => {
                       ({uiMode === 'beta' ? 'β' : 'α'})
                     </span>
                   </h1>
-                  {sessionInfo?.tags && sessionInfo.tags.length > 0 && (
-                    <div className="flex gap-1 mt-1">
-                      {sessionInfo.tags.map(tag => (
-                        <span
-                          key={tag}
-                          className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
               {user && (

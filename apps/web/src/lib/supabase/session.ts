@@ -12,7 +12,6 @@ export type BoothInfo = {
   name: string;
   description?: string;
   experimentParams?: Record<string, unknown>;
-  tags?: string[];
 };
 
 export type SessionInfo = {
@@ -21,7 +20,6 @@ export type SessionInfo = {
   userId: string | null;
   username: string | null;
   boothName?: string;
-  tags?: string[];
   notes?: string;
   experimentParams?: Record<string, unknown>;
 };
@@ -42,7 +40,6 @@ export const createSession = async (boothInfo?: BoothInfo): Promise<string> => {
       user_id: user?.id || null,
       username: username,
       notes: boothInfo?.name || null,
-      tags: boothInfo?.tags || null,
       experiment_params: (boothInfo?.experimentParams as never) || null,
     })
     .select('id')
@@ -154,7 +151,7 @@ export const saveDependencies = async (
 export const getSessionInfo = async (sessionId: string): Promise<SessionInfo> => {
   const { data, error } = await supabase
     .from('sessions')
-    .select('id, created_at, user_id, username, notes, tags, experiment_params')
+    .select('id, created_at, user_id, username, notes, experiment_params')
     .eq('id', sessionId)
     .single();
 
@@ -166,7 +163,6 @@ export const getSessionInfo = async (sessionId: string): Promise<SessionInfo> =>
     userId: data.user_id,
     username: data.username,
     boothName: data.notes || undefined,
-    tags: data.tags || undefined,
     notes: data.notes || undefined,
     experimentParams: (data.experiment_params as Record<string, unknown>) || undefined,
   };

@@ -18,7 +18,6 @@ type Session = {
   created_at: string;
   username: string | null;
   notes: string | null;
-  tags: string[] | null;
 };
 
 export const BoothList = () => {
@@ -44,7 +43,6 @@ export const BoothList = () => {
           created_at: s.createdAt,
           username: s.username,
           notes: s.notes || null,
-          tags: s.tags || null,
         }))
       );
     } catch (err) {
@@ -238,18 +236,6 @@ export const BoothList = () => {
                         <span>•</span>
                         <span>{new Date(booth.created_at).toLocaleString('ja-JP')}</span>
                       </div>
-                      {booth.tags && booth.tags.length > 0 && (
-                        <div className="flex gap-1 mt-2">
-                          {booth.tags.map(tag => (
-                            <span
-                              key={tag}
-                              className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     <svg
                       className="w-5 h-5 text-slate-400 dark:text-slate-500 mt-1"

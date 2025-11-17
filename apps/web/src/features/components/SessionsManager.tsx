@@ -18,7 +18,6 @@ type Session = {
   id: string;
   created_at: string;
   username: string | null;
-  tags: string[] | null;
   notes: string | null;
   experiment_params: unknown;
   utterance_count: number;
@@ -37,7 +36,6 @@ export const SessionsManager = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterUser, setFilterUser] = useState<string>('');
-  const [filterTag, setFilterTag] = useState<string>('');
   const [sortBy, setSortBy] = useState<'date' | 'utterances' | 'important' | 'score'>('date');
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [utterances, setUtterances] = useState<Utterance[]>([]);
@@ -52,7 +50,6 @@ export const SessionsManager = () => {
           id: s.id,
           created_at: s.createdAt,
           username: s.username,
-          tags: s.tags || null,
           notes: s.notes || null,
           experiment_params: s.experimentParams,
           utterance_count: s.utteranceCount,
@@ -152,7 +149,6 @@ export const SessionsManager = () => {
   const filteredSessions = sessions
     .filter(s => {
       if (filterUser && !s.username?.includes(filterUser)) return false;
-      if (filterTag && !s.tags?.some(t => t.includes(filterTag))) return false;
       return true;
     })
     .sort((a, b) => {
@@ -238,13 +234,6 @@ export const SessionsManager = () => {
               onChange={e => setFilterUser(e.target.value)}
               className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-slate-100"
             />
-            <input
-              type="text"
-              placeholder="タグでフィルタ"
-              value={filterTag}
-              onChange={e => setFilterTag(e.target.value)}
-              className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-slate-100"
-            />
 
             {/* ソート */}
             <select
@@ -296,7 +285,7 @@ export const SessionsManager = () => {
                   ユーザー
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
-                  タグ
+                  UIモード
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
                   発話数
@@ -315,6 +304,8 @@ export const SessionsManager = () => {
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {filteredSessions.map(session => {
                 const isExpanded = expandedSessionId === session.id;
+                const uiMode =
+                  (session.experiment_params as { uiMode?: 'alpha' | 'beta' })?.uiMode || 'alpha';
                 return (
                   <React.Fragment key={session.id}>
                     <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
@@ -337,14 +328,15 @@ export const SessionsManager = () => {
                         {session.username || '匿名'}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        {session.tags?.map(tag => (
-                          <span
-                            key={tag}
-                            className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded mr-1"
-                          >
-                            {tag}
-                          </span>
-                        ))}
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                            uiMode === 'beta'
+                              ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                              : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                          }`}
+                        >
+                          {uiMode === 'beta' ? 'β' : 'α'}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-right text-slate-800 dark:text-slate-200">
                         {session.utterance_count}
