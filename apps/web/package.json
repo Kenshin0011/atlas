@@ -6,6 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
+    "type-check": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
     "db:types": "bash -c 'PROJECT_ID=$(echo $NEXT_PUBLIC_SUPABASE_URL | sed -E \"s|https://([^.]+)\\.supabase\\.co.*|\\1|\") && supabase gen types typescript --project-id \"$PROJECT_ID\" --schema public > src/lib/supabase/database.types.ts'"
