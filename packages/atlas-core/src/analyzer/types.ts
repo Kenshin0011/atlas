@@ -24,7 +24,7 @@ export type AnalyzerOptions = {
  */
 export const defaultOptions: Required<AnalyzerOptions> = {
   k: 15,
-  halfLifeTurns: 50, // 50ターンで半減（大幅に緩和）
+  halfLifeTurns: 10, // 10ターンで半減
   nullSamples: 20,
-  zThreshold: 1.0, // z > 1.0 を重要とみなす
+  zThreshold: 1.64, // z > 1.64 を重要とみなす（上位5%）
 };

@@ -24,6 +24,7 @@ export const median = (xs: number[]): number => {
 export const robustZ = (values: number[]): number[] => {
   const med = median(values);
   const abs = values.map(v => Math.abs(v - med));
-  const mad = median(abs) || 1e-9;
+  // MADの最小値を0.001に設定（loss値は0-1の範囲なので0.1%を閾値とする）
+  const mad = Math.max(median(abs), 0.001);
   return values.map(v => 0.6745 * ((v - med) / mad));
 };
