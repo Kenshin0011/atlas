@@ -30,7 +30,6 @@ export const ConversationTimeline = ({
 
   // α版・β版ともに初期状態は全て表示
   const [showOnlyRelevant, setShowOnlyRelevant] = useState(false);
-  const [showPastImportant, setShowPastImportant] = useState(true);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -111,29 +110,12 @@ export const ConversationTimeline = ({
           ...currentDependencies, // β版では空なのでcurrentUtteranceのみ
         ]);
 
-        // 紫色（過去の重要発話）も含める場合
-        if (showPastImportant) {
-          const allImportantIds = dialogue
-            .filter(u => scores.get(u.id)?.isImportant)
-            .map(u => u.id);
-          for (const id of allImportantIds) {
-            relevantIds.add(id);
-          }
-        }
-
         setDisplayDialogue(dialogue.filter(u => relevantIds.has(u.id)));
       }
     } else {
       console.log('[ConversationTimeline] Dependencies unchanged, keeping display');
     }
-  }, [
-    currentDependencies,
-    dialogue,
-    currentUtterance,
-    showOnlyRelevant,
-    showPastImportant,
-    scores,
-  ]);
+  }, [currentDependencies, dialogue, currentUtterance, showOnlyRelevant]);
 
   // 「全て」モードではdialogueの変更を反映
   useEffect(() => {
@@ -142,17 +124,12 @@ export const ConversationTimeline = ({
     }
   }, [dialogue, showOnlyRelevant]);
 
-  // フィルタートグルまたは紫色トグルが変更されたとき
+  // フィルタートグルが変更されたとき
   const prevShowOnlyRelevantRef = useRef(showOnlyRelevant);
-  const prevShowPastImportantRef = useRef(showPastImportant);
   useEffect(() => {
-    // showOnlyRelevantまたはshowPastImportantが実際に変わったときだけ実行
-    if (
-      prevShowOnlyRelevantRef.current !== showOnlyRelevant ||
-      prevShowPastImportantRef.current !== showPastImportant
-    ) {
+    // showOnlyRelevantが実際に変わったときだけ実行
+    if (prevShowOnlyRelevantRef.current !== showOnlyRelevant) {
       prevShowOnlyRelevantRef.current = showOnlyRelevant;
-      prevShowPastImportantRef.current = showPastImportant;
 
       if (showOnlyRelevant) {
         // 関連のみモードに切り替え：現在のdisplayDependenciesでフィルタ（β版では空）
@@ -161,30 +138,13 @@ export const ConversationTimeline = ({
           ...displayDependencies, // β版では空なのでcurrentUtteranceのみ
         ]);
 
-        // 紫色（過去の重要発話）も含める場合
-        if (showPastImportant) {
-          const allImportantIds = dialogue
-            .filter(u => scores.get(u.id)?.isImportant)
-            .map(u => u.id);
-          for (const id of allImportantIds) {
-            relevantIds.add(id);
-          }
-        }
-
         setDisplayDialogue(dialogue.filter(u => relevantIds.has(u.id)));
       } else {
         // 全てモードに切り替え：全て表示
         setDisplayDialogue(dialogue);
       }
     }
-  }, [
-    showOnlyRelevant,
-    showPastImportant,
-    currentUtterance,
-    displayDependencies,
-    dialogue,
-    scores,
-  ]);
+  }, [showOnlyRelevant, currentUtterance, displayDependencies, dialogue]);
 
   // 依存関係チェーンを構築（例: #5→#4→#1）（β版では非表示）
   const dependencyChain = useMemo(() => {
@@ -305,21 +265,6 @@ export const ConversationTimeline = ({
 
           {/* コントロールボタン */}
           <div className="flex items-center gap-2">
-            {/* 過去の重要発話トグル（関連のみモードの時だけ表示） */}
-            {showOnlyRelevant && (
-              <button
-                type="button"
-                onClick={() => setShowPastImportant(!showPastImportant)}
-                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                  showPastImportant
-                    ? 'bg-purple-500 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-              >
-                {showPastImportant ? '✓ 過去の重要語' : '過去の重要語'}
-              </button>
-            )}
-
             {/* フィルタートグル */}
             <button
               type="button"
@@ -350,8 +295,6 @@ export const ConversationTimeline = ({
           ) : (
             <div className="space-y-1.5">
               {displayDialogue.map((utterance, _displayIndex) => {
-                const score = scores.get(utterance.id);
-                const isImportant = score?.isImportant || false;
                 const isCurrent = currentUtterance?.id === utterance.id;
                 const isDependency = displayDependencies.has(utterance.id);
                 const originalIndex = dialogue.findIndex(u => u.id === utterance.id);
@@ -365,9 +308,7 @@ export const ConversationTimeline = ({
                           ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-400 dark:border-blue-600'
                           : isDependency
                             ? 'bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-400 dark:border-orange-600'
-                            : isImportant
-                              ? 'bg-purple-50 dark:bg-purple-900/20 border border-purple-300 dark:border-purple-700'
-                              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'
                       }`}
                     >
                       {/* ヘッダー */}
@@ -387,11 +328,6 @@ export const ConversationTimeline = ({
                           {isDependency && !isCurrent && (
                             <span className="text-[10px] px-1.5 py-0.5 bg-orange-500 text-white rounded-full font-bold animate-pulse">
                               ⭐
-                            </span>
-                          )}
-                          {isImportant && !isDependency && !isCurrent && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-purple-500 text-white rounded-full font-medium">
-                              ●
                             </span>
                           )}
                         </div>
@@ -454,12 +390,6 @@ export const ConversationTimeline = ({
               ⭐
             </span>
             <span className="text-slate-700 dark:text-slate-300">関連</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="px-1.5 py-0.5 bg-purple-500 text-white rounded-full text-[10px]">
-              ●
-            </span>
-            <span className="text-slate-700 dark:text-slate-300">過去の関連発言記録</span>
           </div>
         </div>
       </div>

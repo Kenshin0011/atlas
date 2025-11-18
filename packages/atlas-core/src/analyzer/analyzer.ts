@@ -42,8 +42,8 @@ export const analyze = async (
   const recent = history.slice(-o.k);
   const baseLoss = await adapter.lossWithHistory(history, current);
 
-  // 候補集合：直近k文
-  const candidates = [...recent];
+  // 候補集合：直近k文（3文字以下の短い発話は除外）
+  const candidates = recent.filter(u => u.text.length > 3);
 
   // nullSamples を候補数に応じて動的調整
   // 短い会話でも十分なサンプル数を確保（最低でも候補数の3倍）

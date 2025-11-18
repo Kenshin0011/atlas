@@ -15,6 +15,7 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { emailToUsername } from '@/lib/supabase/username';
 import { useStreamWithSupabase } from '../hooks/useStreamWithSupabase';
 import { ConversationTimeline } from './ConversationTimeline';
+import { MathChallenge } from './MathChallenge';
 import { SpeechRecognitionIndicator } from './SpeechRecognitionIndicator';
 
 type AssistantProps = {
@@ -125,10 +126,10 @@ export const Assistant = ({ boothId }: AssistantProps) => {
   });
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-900">
+    <div className="h-screen flex flex-col bg-slate-100 dark:bg-slate-900">
       {/* ヘッダー */}
-      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
-        <div className="container mx-auto px-4 py-4">
+      <header className="flex-none bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
+        <div className="w-full px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -267,58 +268,66 @@ export const Assistant = ({ boothId }: AssistantProps) => {
       </header>
 
       {/* メインコンテンツ */}
-      <main className="container mx-auto px-4 py-6">
-        <div className="flex flex-col gap-6">
-          {/* テキスト入力フォーム（テキストモードのみ） */}
-          {inputMode === 'text' && (
-            <form
-              onSubmit={handleTextSubmit}
-              className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4"
-            >
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={textInput}
-                    onChange={e => setTextInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="発話内容を入力..."
-                    className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={!speakerName}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!speakerName || !textInput.trim()}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-                  >
-                    送信
-                  </button>
+      <main className="flex-1 flex overflow-hidden">
+        {/* 左側: 会話エリア */}
+        <div className="flex-1 flex flex-col">
+          <div className="container mx-auto px-4 py-6 flex flex-col gap-6 h-full">
+            {/* テキスト入力フォーム（テキストモードのみ） */}
+            {inputMode === 'text' && (
+              <form
+                onSubmit={handleTextSubmit}
+                className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4"
+              >
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={textInput}
+                      onChange={e => setTextInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="発話内容を入力..."
+                      className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!speakerName}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!speakerName || !textInput.trim()}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                    >
+                      送信
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    ⌘+Enter (Mac) / Ctrl+Enter (Windows) で送信
+                  </p>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  ⌘+Enter (Mac) / Ctrl+Enter (Windows) で送信
-                </p>
-              </div>
-            </form>
-          )}
+              </form>
+            )}
 
-          {/* タイムライン表示 */}
-          <div className="h-[calc(100vh-280px)]">
-            <ConversationTimeline
-              dialogue={dialogue}
-              scores={scores}
-              dependencies={dependencies}
-              currentUtterance={dialogue[dialogue.length - 1]}
-              mode={uiMode}
-            />
-          </div>
-          {isListening && (
-            <div className="mt-4">
-              <SpeechRecognitionIndicator
-                isListening={isListening}
-                interimTranscript={interimTranscript}
+            {/* タイムライン表示 */}
+            <div className="flex-1 min-h-0">
+              <ConversationTimeline
+                dialogue={dialogue}
+                scores={scores}
+                dependencies={dependencies}
+                currentUtterance={dialogue[dialogue.length - 1]}
+                mode={uiMode}
               />
             </div>
-          )}
+            {isListening && (
+              <div className="mt-4">
+                <SpeechRecognitionIndicator
+                  isListening={isListening}
+                  interimTranscript={interimTranscript}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 右側: 掛け算チャレンジエリア */}
+        <div className="w-96 flex-shrink-0">
+          <MathChallenge />
         </div>
       </main>
     </div>
