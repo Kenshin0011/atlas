@@ -305,7 +305,8 @@ export const SessionsManager = () => {
               {filteredSessions.map(session => {
                 const isExpanded = expandedSessionId === session.id;
                 const uiMode =
-                  (session.experiment_params as { uiMode?: 'alpha' | 'beta' })?.uiMode || 'alpha';
+                  (session.experiment_params as { uiMode?: 'alpha' | 'beta' | 'gamma' })?.uiMode ||
+                  'alpha';
                 return (
                   <React.Fragment key={session.id}>
                     <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
@@ -332,10 +333,12 @@ export const SessionsManager = () => {
                           className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
                             uiMode === 'beta'
                               ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
-                              : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                              : uiMode === 'gamma'
+                                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                                : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
                           }`}
                         >
-                          {uiMode === 'beta' ? 'β' : 'α'}
+                          {uiMode === 'beta' ? 'β' : uiMode === 'gamma' ? 'γ' : 'α'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-right text-slate-800 dark:text-slate-200">
