@@ -8,6 +8,7 @@
 import type { Utterance } from '@atlas/core';
 import Link from 'next/link';
 import { useCallback, useMemo, useState } from 'react';
+import { summarizeConversationAction } from '@/app/actions/summarize';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
@@ -30,6 +31,9 @@ export const Assistant = ({ boothId }: AssistantProps) => {
   const [inputMode, setInputMode] = useState<InputMode>('speech');
   const [textInput, setTextInput] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
+  const [showingSummary, setShowingSummary] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   // ユーザー名を自動的に話者名として使用
   const speakerName = useMemo(() => {
@@ -47,7 +51,7 @@ export const Assistant = ({ boothId }: AssistantProps) => {
 
   // UIモードを取得
   const uiMode =
-    (sessionInfo?.experimentParams as { uiMode?: 'alpha' | 'beta' })?.uiMode || 'alpha';
+    (sessionInfo?.experimentParams as { uiMode?: 'alpha' | 'beta' | 'gamma' })?.uiMode || 'alpha';
 
   // 音声認識コールバック
   const handleTranscript = useCallback(
@@ -125,6 +129,32 @@ export const Assistant = ({ boothId }: AssistantProps) => {
     onSubmit: submitText,
   });
 
+  // 要約生成（γ版用）
+  const handleSummarize = useCallback(async () => {
+    if (!sessionId) return;
+
+    // すでに要約表示中なら、タイムラインに戻る
+    if (showingSummary) {
+      setShowingSummary(false);
+      return;
+    }
+
+    // 要約を生成
+    setShowingSummary(true);
+    setSummaryLoading(true);
+    setSummary('');
+
+    try {
+      const summary = await summarizeConversationAction(sessionId);
+      setSummary(summary);
+    } catch (error) {
+      console.error('[handleSummarize] エラー:', error);
+      setSummary(error instanceof Error ? error.message : '要約の生成中にエラーが発生しました');
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, [sessionId, showingSummary]);
+
   return (
     <div className="h-screen flex flex-col bg-slate-100 dark:bg-slate-900">
       {/* ヘッダー */}
@@ -152,7 +182,7 @@ export const Assistant = ({ boothId }: AssistantProps) => {
                     <span>🟢</span>
                     <span>{sessionInfo?.boothName || 'Atlas Assistant'}</span>
                     <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
-                      ({uiMode === 'beta' ? 'β' : 'α'})
+                      ({uiMode === 'gamma' ? 'γ' : uiMode === 'beta' ? 'β' : 'α'})
                     </span>
                   </h1>
                 </div>
@@ -312,6 +342,10 @@ export const Assistant = ({ boothId }: AssistantProps) => {
                 dependencies={dependencies}
                 currentUtterance={dialogue[dialogue.length - 1]}
                 mode={uiMode}
+                onSummarize={handleSummarize}
+                summary={summary}
+                summaryLoading={summaryLoading}
+                showingSummary={showingSummary}
               />
             </div>
             {isListening && (

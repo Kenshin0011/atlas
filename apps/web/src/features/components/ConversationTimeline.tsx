@@ -16,7 +16,11 @@ type ConversationTimelineProps = {
   scores: Map<number, Score>;
   dependencies: DependencyEdge[];
   currentUtterance?: Utterance | null;
-  mode?: 'alpha' | 'beta'; // α版: 依存関係表示, β版: 重要発話のみ
+  mode?: 'alpha' | 'beta' | 'gamma'; // α版: 依存関係表示, β版: 重要発話のみ, γ版: 要約ボタン
+  onSummarize?: () => void; // γ版用: 要約ボタンのコールバック
+  summary?: string; // γ版用: 要約テキスト
+  summaryLoading?: boolean; // γ版用: 要約読み込み中
+  showingSummary?: boolean; // γ版用: 要約表示中かどうか
 };
 
 export const ConversationTimeline = ({
@@ -25,8 +29,13 @@ export const ConversationTimeline = ({
   dependencies,
   currentUtterance,
   mode = 'alpha',
+  onSummarize,
+  summary,
+  summaryLoading,
+  showingSummary,
 }: ConversationTimelineProps) => {
   const isBetaMode = mode === 'beta';
+  const isGammaMode = mode === 'gamma';
 
   // α版・β版ともに初期状態は全て表示
   const [showOnlyRelevant, setShowOnlyRelevant] = useState(false);
@@ -65,7 +74,14 @@ export const ConversationTimeline = ({
 
   // 現在の発話が依存している重要発話のIDセット（再帰的に取得）
   // β版では最新の重要発話のみをオレンジにする
+  // α版では過去3発話分の関連語を累積して表示（コロコロ変わるのを防ぐ）
+  // γ版では関連語を表示しない（要約ボタンのみ）
   const currentDependencies = useMemo(() => {
+    if (isGammaMode) {
+      // γ版：関連語を表示しない
+      return new Set<number>();
+    }
+
     if (isBetaMode) {
       // β版：最新の重要発話のみをオレンジ色で表示（現在の関連語）
       const importantUtterances = dialogue.filter(u => scores.get(u.id)?.isImportant);
@@ -76,20 +92,51 @@ export const ConversationTimeline = ({
       return new Set([latestImportant.id]);
     }
 
-    if (!currentUtterance) {
-      console.log('[ConversationTimeline] No current utterance');
-      return new Set<number>();
+    // α版：過去3発話分の依存関係を累積（情報量を抑える）
+    const recentUtterances = dialogue.slice(-3); // 最新3発話
+    const depWithScore: Array<{ id: number; score: number; age: number }> = [];
+    const seenIds = new Set<number>();
+
+    console.log('[ConversationTimeline] Accumulating dependencies for recent utterances:', {
+      count: recentUtterances.length,
+      ids: recentUtterances.map(u => u.id),
+    });
+
+    // 各発話の依存関係を収集（スコアと新しさを記録）
+    for (let i = 0; i < recentUtterances.length; i++) {
+      const utt = recentUtterances[i];
+      const age = recentUtterances.length - 1 - i; // 0: 最新, 2: 最古
+      const deps = getAllDependencies(utt.id);
+
+      console.log(`[ConversationTimeline] Dependencies for utterance ${utt.id}:`, deps);
+
+      for (const dep of deps) {
+        if (!seenIds.has(dep)) {
+          seenIds.add(dep);
+          const score = scores.get(dep);
+          depWithScore.push({
+            id: dep,
+            score: score?.score || 0,
+            age,
+          });
+        }
+      }
     }
 
-    console.log('[ConversationTimeline] Current utterance:', currentUtterance.id);
-    console.log('[ConversationTimeline] All dependencies:', dependencies);
+    // スコアと新しさでソートして上位5個まで（情報量を制限）
+    const topDeps = depWithScore
+      .sort((a, b) => {
+        // スコアが高い順、同じなら新しい順
+        if (b.score !== a.score) return b.score - a.score;
+        return a.age - b.age;
+      })
+      .slice(0, 5)
+      .map(d => d.id);
 
-    // 再帰的に全ての依存を取得
-    const allDepIds = getAllDependencies(currentUtterance.id);
-    console.log('[ConversationTimeline] All dependency IDs (recursive):', allDepIds);
+    console.log('[ConversationTimeline] Top dependencies (max 5):', topDeps);
 
-    return new Set(allDepIds);
-  }, [isBetaMode, dialogue, scores, currentUtterance, dependencies, getAllDependencies]);
+    return new Set(topDeps);
+  }, [isGammaMode, isBetaMode, dialogue, scores, getAllDependencies]);
 
   // 依存関係が変わったときだけ表示を更新
   useEffect(() => {
@@ -146,9 +193,9 @@ export const ConversationTimeline = ({
     }
   }, [showOnlyRelevant, currentUtterance, displayDependencies, dialogue]);
 
-  // 依存関係チェーンを構築（例: #5→#4→#1）（β版では非表示）
+  // 依存関係チェーンを構築（例: #5→#4→#1）（β版・γ版では非表示）
   const dependencyChain = useMemo(() => {
-    if (isBetaMode) return null; // β版では依存関係チェーンを表示しない
+    if (isBetaMode || isGammaMode) return null; // β版・γ版では依存関係チェーンを表示しない
     if (!currentUtterance || currentDependencies.size === 0) return null;
 
     console.log('[ConversationTimeline] Building dependency chain:', {
@@ -176,7 +223,7 @@ export const ConversationTimeline = ({
     });
 
     return { chain, currentIndex };
-  }, [isBetaMode, currentUtterance, currentDependencies, dialogue]);
+  }, [isBetaMode, isGammaMode, currentUtterance, currentDependencies, dialogue]);
 
   // スクロール位置を監視
   const handleScroll = () => {
@@ -265,18 +312,36 @@ export const ConversationTimeline = ({
 
           {/* コントロールボタン */}
           <div className="flex items-center gap-2">
-            {/* フィルタートグル */}
-            <button
-              type="button"
-              onClick={() => setShowOnlyRelevant(!showOnlyRelevant)}
-              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                showOnlyRelevant
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              {showOnlyRelevant ? '✓ 関連のみ' : '全て'}
-            </button>
+            {/* フィルタートグル（α版・β版のみ） */}
+            {!isGammaMode && (
+              <button
+                type="button"
+                onClick={() => setShowOnlyRelevant(!showOnlyRelevant)}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  showOnlyRelevant
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                {showOnlyRelevant ? '✓ 関連のみ' : '全て'}
+              </button>
+            )}
+
+            {/* 要約ボタン（γ版のみ） */}
+            {isGammaMode && onSummarize && (
+              <button
+                type="button"
+                onClick={onSummarize}
+                className={`px-4 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                  showingSummary
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                <span>📝</span>
+                <span>{showingSummary ? '✓ 要約' : '要約'}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -288,7 +353,33 @@ export const ConversationTimeline = ({
           onScroll={handleScroll}
           className="absolute inset-0 overflow-y-auto px-4 py-3"
         >
-          {displayDialogue.length === 0 ? (
+          {/* γ版：要約表示 */}
+          {isGammaMode && showingSummary ? (
+            <div className="max-w-3xl mx-auto">
+              {summaryLoading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4" />
+                  <p className="text-slate-600 dark:text-slate-400">要約を生成中...</p>
+                </div>
+              ) : summary ? (
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6">
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+                    <span>📝</span>
+                    <span>会話の要約</span>
+                  </h3>
+                  <div className="prose dark:prose-invert max-w-none">
+                    <div className="whitespace-pre-wrap text-slate-700 dark:text-slate-300 leading-relaxed">
+                      {summary}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                  要約が生成されませんでした
+                </div>
+              )}
+            </div>
+          ) : displayDialogue.length === 0 ? (
             <div className="text-center py-12 text-slate-400 dark:text-slate-500">
               {showOnlyRelevant ? '関連発話がありません' : 'まだ発話がありません'}
             </div>

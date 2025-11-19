@@ -26,7 +26,7 @@ export const BoothList = () => {
   const { isAdmin: isAdminUser } = useAdmin();
   const boothNameId = useId();
   const [boothName, setBoothName] = useState('');
-  const [uiMode, setUiMode] = useState<'alpha' | 'beta'>('alpha');
+  const [uiMode, setUiMode] = useState<'alpha' | 'beta' | 'gamma'>('alpha');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingBooths, setExistingBooths] = useState<Session[]>([]);
@@ -190,6 +190,21 @@ export const BoothList = () => {
                   <div>
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                       β
+                    </span>
+                  </div>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="uiMode"
+                    value="gamma"
+                    checked={uiMode === 'gamma'}
+                    onChange={e => setUiMode(e.target.value as 'gamma')}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      γ
                     </span>
                   </div>
                 </label>
