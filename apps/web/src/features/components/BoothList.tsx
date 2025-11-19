@@ -18,6 +18,9 @@ type Session = {
   created_at: string;
   username: string | null;
   notes: string | null;
+  experimentParams?: {
+    uiMode?: 'alpha' | 'beta' | 'gamma';
+  };
 };
 
 export const BoothList = () => {
@@ -43,6 +46,7 @@ export const BoothList = () => {
           created_at: s.createdAt,
           username: s.username,
           notes: s.notes || null,
+          experimentParams: s.experimentParams as { uiMode?: 'alpha' | 'beta' | 'gamma' },
         }))
       );
     } catch (err) {
@@ -243,9 +247,18 @@ export const BoothList = () => {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-slate-800 dark:text-slate-100 mb-1">
-                        {booth.notes || '(未設定)'}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-slate-800 dark:text-slate-100">
+                          {booth.notes || '(未設定)'}
+                        </h3>
+                        {booth.experimentParams?.uiMode && (
+                          <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                            {booth.experimentParams.uiMode === 'alpha' && 'αモード'}
+                            {booth.experimentParams.uiMode === 'beta' && 'βモード'}
+                            {booth.experimentParams.uiMode === 'gamma' && 'γモード'}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                         <span>作成者: {booth.username || '匿名'}</span>
                         <span>•</span>
