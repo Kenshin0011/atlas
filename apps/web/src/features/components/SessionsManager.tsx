@@ -10,8 +10,10 @@ import {
   clearSessionDataAction,
   deleteSessionAction,
   exportSessionsAction,
+  getSessionInteractionsAction,
   getSessionsAction,
   getSessionUtterancesAction,
+  getUserInteractionStatsAction,
 } from '@/app/actions/session';
 
 type Session = {
@@ -23,6 +25,9 @@ type Session = {
   utterance_count: number;
   important_count: number;
   avg_score: number;
+  interaction_count: number;
+  filter_toggle_count: number;
+  summarize_count: number;
 };
 
 type Utterance = {
@@ -32,19 +37,46 @@ type Utterance = {
   timestamp: number;
 };
 
+type UserStats = {
+  userId: string | null;
+  username: string | null;
+  totalInteractions: number;
+  filterToggleCount: number;
+  summarizeCount: number;
+  sessionCount: number;
+};
+
+type Interaction = {
+  id: number;
+  userId: string | null;
+  username: string | null;
+  eventType: 'filter_toggle' | 'summarize';
+  eventData: Record<string, unknown> | null;
+  createdAt: string;
+};
+
 export const SessionsManager = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [userStats, setUserStats] = useState<UserStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterUser, setFilterUser] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'date' | 'utterances' | 'important' | 'score'>('date');
+  const [sortBy, setSortBy] = useState<
+    'date' | 'utterances' | 'important' | 'score' | 'interactions'
+  >('date');
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [utterances, setUtterances] = useState<Utterance[]>([]);
+  const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [loadingUtterances, setLoadingUtterances] = useState(false);
+  const [activeTab, setActiveTab] = useState<'utterances' | 'interactions'>('utterances');
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
     try {
-      const sessions = await getSessionsAction();
+      const [sessions, userInteractionStats] = await Promise.all([
+        getSessionsAction(),
+        getUserInteractionStatsAction(),
+      ]);
+
       setSessions(
         sessions.map(s => ({
           id: s.id,
@@ -55,8 +87,13 @@ export const SessionsManager = () => {
           utterance_count: s.utteranceCount,
           important_count: s.importantCount,
           avg_score: s.avgScore,
+          interaction_count: s.interactionCount,
+          filter_toggle_count: s.filterToggleCount,
+          summarize_count: s.summarizeCount,
         }))
       );
+
+      setUserStats(userInteractionStats);
     } catch (error) {
       console.error('Failed to fetch sessions:', error);
     } finally {
@@ -127,19 +164,25 @@ export const SessionsManager = () => {
       // 閉じる
       setExpandedSessionId(null);
       setUtterances([]);
+      setInteractions([]);
       return;
     }
 
     // 開く
     setExpandedSessionId(sessionId);
     setLoadingUtterances(true);
+    setActiveTab('utterances');
 
     try {
-      const utterances = await getSessionUtterancesAction(sessionId);
+      const [utterances, interactions] = await Promise.all([
+        getSessionUtterancesAction(sessionId),
+        getSessionInteractionsAction(sessionId),
+      ]);
       setUtterances(utterances);
+      setInteractions(interactions);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '不明なエラー';
-      alert(`発話の取得に失敗しました: ${errorMsg}`);
+      alert(`データの取得に失敗しました: ${errorMsg}`);
       setExpandedSessionId(null);
     } finally {
       setLoadingUtterances(false);
@@ -159,6 +202,8 @@ export const SessionsManager = () => {
           return b.important_count - a.important_count;
         case 'score':
           return (b.avg_score ?? 0) - (a.avg_score ?? 0);
+        case 'interactions':
+          return b.interaction_count - a.interaction_count;
         default:
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
@@ -167,6 +212,7 @@ export const SessionsManager = () => {
   // 統計サマリー
   const totalUtterances = sessions.reduce((sum, s) => sum + s.utterance_count, 0);
   const totalImportant = sessions.reduce((sum, s) => sum + s.important_count, 0);
+  const totalInteractions = sessions.reduce((sum, s) => sum + s.interaction_count, 0);
   const avgScore =
     sessions.length > 0
       ? sessions.reduce((sum, s) => sum + (s.avg_score ?? 0), 0) / sessions.length
@@ -196,7 +242,7 @@ export const SessionsManager = () => {
 
       <main className="container mx-auto px-4 py-6">
         {/* 統計サマリー */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
             <div className="text-sm text-slate-600 dark:text-slate-400">総セッション数</div>
             <div className="text-3xl font-bold text-slate-800 dark:text-slate-100">
@@ -213,6 +259,12 @@ export const SessionsManager = () => {
             <div className="text-sm text-slate-600 dark:text-slate-400">総重要発言数</div>
             <div className="text-3xl font-bold text-green-600 dark:text-green-400">
               {totalImportant}
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
+            <div className="text-sm text-slate-600 dark:text-slate-400">総インタラクション</div>
+            <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+              {totalInteractions}
             </div>
           </div>
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
@@ -239,13 +291,16 @@ export const SessionsManager = () => {
             <select
               value={sortBy}
               onChange={e =>
-                setSortBy(e.target.value as 'date' | 'utterances' | 'important' | 'score')
+                setSortBy(
+                  e.target.value as 'date' | 'utterances' | 'important' | 'score' | 'interactions'
+                )
               }
               className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-slate-100"
             >
               <option value="date">作成日時順</option>
               <option value="utterances">発話数順</option>
               <option value="important">重要発言数順</option>
+              <option value="interactions">インタラクション数順</option>
               <option value="score">平均スコア順</option>
             </select>
 
@@ -267,6 +322,66 @@ export const SessionsManager = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* ユーザー別統計 */}
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow mb-6 p-4">
+          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">
+            👤 ユーザー別インタラクション統計
+          </h2>
+          {userStats.length === 0 ? (
+            <div className="text-center py-4 text-slate-500 dark:text-slate-400">
+              インタラクションデータがありません
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 dark:bg-slate-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
+                      ユーザー名
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
+                      総操作回数
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
+                      フィルター切替
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
+                      要約生成
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
+                      参加セッション数
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {userStats.map((user, index) => (
+                    <tr
+                      key={user.userId || index}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                    >
+                      <td className="px-4 py-3 text-sm text-slate-800 dark:text-slate-200 font-medium">
+                        {user.username || '匿名'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right text-orange-600 dark:text-orange-400 font-bold">
+                        {user.totalInteractions}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right text-slate-700 dark:text-slate-300">
+                        {user.filterToggleCount}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right text-slate-700 dark:text-slate-300">
+                        {user.summarizeCount}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right text-blue-600 dark:text-blue-400">
+                        {user.sessionCount}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* セッション一覧 */}
@@ -295,6 +410,9 @@ export const SessionsManager = () => {
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
                   平均スコア
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
+                  操作回数
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-slate-600 dark:text-slate-400 uppercase">
                   アクション
@@ -350,6 +468,16 @@ export const SessionsManager = () => {
                       <td className="px-4 py-3 text-sm text-right text-purple-600 dark:text-purple-400 font-medium">
                         {(session.avg_score ?? 0).toFixed(2)}
                       </td>
+                      <td className="px-4 py-3 text-sm text-right">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="text-orange-600 dark:text-orange-400 font-semibold">
+                            {session.interaction_count}
+                          </span>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                            (F:{session.filter_toggle_count} S:{session.summarize_count})
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-sm text-center">
                         <div className="flex items-center justify-center gap-2">
                           <a
@@ -380,56 +508,164 @@ export const SessionsManager = () => {
                       </td>
                     </tr>
 
-                    {/* 展開された発話リスト */}
+                    {/* 展開されたデータ */}
                     {isExpanded && (
                       <tr>
-                        <td colSpan={9} className="px-4 py-4 bg-slate-50 dark:bg-slate-900/50">
+                        <td colSpan={10} className="px-4 py-4 bg-slate-50 dark:bg-slate-900/50">
                           {loadingUtterances ? (
                             <div className="text-center text-slate-500 dark:text-slate-400 py-4">
                               読み込み中...
                             </div>
-                          ) : utterances.length === 0 ? (
-                            <div className="text-center text-slate-500 dark:text-slate-400 py-4">
-                              発話がありません
-                            </div>
                           ) : (
-                            <div className="max-h-96 overflow-y-auto">
-                              <table className="w-full">
-                                <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
-                                  <tr>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
-                                      ID
-                                    </th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
-                                      話者
-                                    </th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
-                                      発話内容
-                                    </th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
-                                      時刻
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                  {utterances.map((utt, index) => (
-                                    <tr key={utt.id}>
-                                      <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
-                                        #{index + 1}
-                                      </td>
-                                      <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300 font-medium">
-                                        {utt.speaker}
-                                      </td>
-                                      <td className="px-3 py-2 text-sm text-slate-800 dark:text-slate-200">
-                                        {utt.text}
-                                      </td>
-                                      <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                                        {new Date(utt.timestamp).toLocaleString('ja-JP')}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                            <div>
+                              {/* タブ */}
+                              <div className="flex gap-2 mb-4 border-b border-slate-200 dark:border-slate-700">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab('utterances')}
+                                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                                    activeTab === 'utterances'
+                                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                                  }`}
+                                >
+                                  💬 発話履歴 ({utterances.length})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab('interactions')}
+                                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                                    activeTab === 'interactions'
+                                      ? 'text-orange-600 dark:text-orange-400 border-b-2 border-orange-600 dark:border-orange-400'
+                                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                                  }`}
+                                >
+                                  🖱️ 操作履歴 ({interactions.length})
+                                </button>
+                              </div>
+
+                              {/* 発話履歴タブ */}
+                              {activeTab === 'utterances' &&
+                                (utterances.length === 0 ? (
+                                  <div className="text-center text-slate-500 dark:text-slate-400 py-4">
+                                    発話がありません
+                                  </div>
+                                ) : (
+                                  <div className="max-h-96 overflow-y-auto">
+                                    <table className="w-full">
+                                      <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
+                                        <tr>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
+                                            ID
+                                          </th>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
+                                            話者
+                                          </th>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
+                                            発話内容
+                                          </th>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
+                                            時刻
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                        {utterances.map((utt, index) => (
+                                          <tr key={utt.id}>
+                                            <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
+                                              #{index + 1}
+                                            </td>
+                                            <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300 font-medium">
+                                              {utt.speaker}
+                                            </td>
+                                            <td className="px-3 py-2 text-sm text-slate-800 dark:text-slate-200">
+                                              {utt.text}
+                                            </td>
+                                            <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                                              {new Date(utt.timestamp).toLocaleString('ja-JP')}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ))}
+
+                              {/* 操作履歴タブ */}
+                              {activeTab === 'interactions' &&
+                                (interactions.length === 0 ? (
+                                  <div className="text-center text-slate-500 dark:text-slate-400 py-4">
+                                    操作履歴がありません
+                                  </div>
+                                ) : (
+                                  <div className="max-h-96 overflow-y-auto">
+                                    <table className="w-full">
+                                      <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
+                                        <tr>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
+                                            ユーザー
+                                          </th>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
+                                            操作タイプ
+                                          </th>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
+                                            詳細
+                                          </th>
+                                          <th className="px-3 py-2 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
+                                            時刻
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                        {interactions.map(interaction => (
+                                          <tr key={interaction.id}>
+                                            <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300 font-medium">
+                                              {interaction.username || '匿名'}
+                                            </td>
+                                            <td className="px-3 py-2 text-xs">
+                                              {interaction.eventType === 'filter_toggle' ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
+                                                  🔄 フィルター切替
+                                                </span>
+                                              ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-full">
+                                                  📝 要約生成
+                                                </span>
+                                              )}
+                                            </td>
+                                            <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
+                                              {interaction.eventData ? (
+                                                interaction.eventType === 'filter_toggle' ? (
+                                                  <span>
+                                                    {(
+                                                      interaction.eventData as {
+                                                        filter_state?: string;
+                                                      }
+                                                    ).filter_state === 'relevant'
+                                                      ? '→ 関連のみ'
+                                                      : '→ 全て'}
+                                                  </span>
+                                                ) : (
+                                                  <span>
+                                                    {(interaction.eventData as { action?: string })
+                                                      .action || '-'}
+                                                  </span>
+                                                )
+                                              ) : (
+                                                '-'
+                                              )}
+                                            </td>
+                                            <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                                              {new Date(interaction.createdAt).toLocaleString(
+                                                'ja-JP'
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ))}
                             </div>
                           )}
                         </td>

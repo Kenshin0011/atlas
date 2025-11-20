@@ -8,6 +8,7 @@
 import type { Utterance } from '@atlas/core';
 import Link from 'next/link';
 import { useCallback, useMemo, useState } from 'react';
+import { saveUserInteractionAction } from '@/app/actions/session';
 import { summarizeConversationAction } from '@/app/actions/summarize';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useAuth } from '@/hooks/useAuth';
@@ -131,13 +132,23 @@ export const Assistant = ({ boothId }: AssistantProps) => {
 
   // 要約生成（γ版用）
   const handleSummarize = useCallback(async () => {
-    if (!sessionId) return;
+    console.log('[handleSummarize] sessionId:', sessionId);
+    if (!sessionId) {
+      console.warn('[handleSummarize] sessionId is undefined, cannot save interaction');
+      return;
+    }
 
     // すでに要約表示中なら、タイムラインに戻る
     if (showingSummary) {
       setShowingSummary(false);
       return;
     }
+
+    // イベント記録
+    console.log('[handleSummarize] Calling saveUserInteractionAction');
+    saveUserInteractionAction(sessionId, 'summarize', {
+      action: 'request',
+    });
 
     // 要約を生成
     setShowingSummary(true);
@@ -346,6 +357,7 @@ export const Assistant = ({ boothId }: AssistantProps) => {
                 summary={summary}
                 summaryLoading={summaryLoading}
                 showingSummary={showingSummary}
+                sessionId={sessionId || undefined}
               />
             </div>
             {isListening && (

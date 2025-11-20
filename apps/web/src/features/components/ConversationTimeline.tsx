@@ -9,6 +9,7 @@
 import type { Utterance } from '@atlas/core';
 import { formatTimeAgo } from '@atlas/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { saveUserInteractionAction } from '@/app/actions/session';
 import type { DependencyEdge, Score } from '../hooks/useStream';
 
 type ConversationTimelineProps = {
@@ -21,6 +22,7 @@ type ConversationTimelineProps = {
   summary?: string; // γ版用: 要約テキスト
   summaryLoading?: boolean; // γ版用: 要約読み込み中
   showingSummary?: boolean; // γ版用: 要約表示中かどうか
+  sessionId?: string; // イベント記録用
 };
 
 export const ConversationTimeline = ({
@@ -33,6 +35,7 @@ export const ConversationTimeline = ({
   summary,
   summaryLoading,
   showingSummary,
+  sessionId,
 }: ConversationTimelineProps) => {
   const isBetaMode = mode === 'beta';
   const isGammaMode = mode === 'gamma';
@@ -316,7 +319,25 @@ export const ConversationTimeline = ({
             {!isGammaMode && (
               <button
                 type="button"
-                onClick={() => setShowOnlyRelevant(!showOnlyRelevant)}
+                onClick={() => {
+                  const newState = !showOnlyRelevant;
+                  setShowOnlyRelevant(newState);
+                  // イベント記録
+                  console.log(
+                    '[ConversationTimeline] Filter toggle clicked, sessionId:',
+                    sessionId
+                  );
+                  if (sessionId) {
+                    console.log('[ConversationTimeline] Calling saveUserInteractionAction');
+                    saveUserInteractionAction(sessionId, 'filter_toggle', {
+                      filter_state: newState ? 'relevant' : 'all',
+                    });
+                  } else {
+                    console.warn(
+                      '[ConversationTimeline] sessionId is undefined, cannot save interaction'
+                    );
+                  }
+                }}
                 className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                   showOnlyRelevant
                     ? 'bg-orange-500 text-white'

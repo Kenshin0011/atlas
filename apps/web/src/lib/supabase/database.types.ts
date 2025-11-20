@@ -123,6 +123,41 @@ export type Database = {
         };
         Relationships: [];
       };
+      user_interactions: {
+        Row: {
+          created_at: string | null;
+          event_data: Json | null;
+          event_type: string;
+          id: number;
+          session_id: string;
+          user_id: string | null;
+        };
+        Insert: {
+          created_at?: string | null;
+          event_data?: Json | null;
+          event_type: string;
+          id?: number;
+          session_id: string;
+          user_id?: string | null;
+        };
+        Update: {
+          created_at?: string | null;
+          event_data?: Json | null;
+          event_type?: string;
+          id?: number;
+          session_id?: string;
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_interactions_session_id_fkey';
+            columns: ['session_id'];
+            isOneToOne: false;
+            referencedRelation: 'sessions';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       utterances: {
         Row: {
           created_at: string | null;

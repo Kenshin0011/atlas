@@ -364,6 +364,9 @@ type SessionWithStats = SessionInfo & {
   utteranceCount: number;
   importantCount: number;
   avgScore: number;
+  interactionCount: number;
+  filterToggleCount: number;
+  summarizeCount: number;
 };
 
 /**
@@ -396,6 +399,12 @@ export const getSessionsAction = async (): Promise<Array<SessionWithStats>> => {
           .select('score')
           .eq('session_id', session.id);
 
+        // インタラクション情報を取得
+        const { data: interactions } = await supabase
+          .from('user_interactions')
+          .select('event_type')
+          .eq('session_id', session.id);
+
         // 重要発言数と平均スコアを計算
         const importantCount =
           scores?.filter(s => (s.score as { isImportant?: boolean })?.isImportant).length || 0;
@@ -404,6 +413,12 @@ export const getSessionsAction = async (): Promise<Array<SessionWithStats>> => {
             ? scores.reduce((sum, s) => sum + ((s.score as { score?: number })?.score || 0), 0) /
               scores.length
             : 0;
+
+        // インタラクション回数を計算
+        const filterToggleCount =
+          interactions?.filter(i => i.event_type === 'filter_toggle').length || 0;
+        const summarizeCount = interactions?.filter(i => i.event_type === 'summarize').length || 0;
+        const interactionCount = interactions?.length || 0;
 
         return {
           id: session.id,
@@ -416,6 +431,9 @@ export const getSessionsAction = async (): Promise<Array<SessionWithStats>> => {
           utteranceCount: utteranceCount || 0,
           importantCount,
           avgScore,
+          interactionCount,
+          filterToggleCount,
+          summarizeCount,
         };
       })
     );
@@ -423,6 +441,198 @@ export const getSessionsAction = async (): Promise<Array<SessionWithStats>> => {
     return sessionsWithStats;
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : 'Failed to get sessions');
+  }
+};
+
+/**
+ * ユーザーインタラクションを記録
+ */
+export const saveUserInteractionAction = async (
+  sessionId: string,
+  eventType: 'filter_toggle' | 'summarize',
+  eventData?: Record<string, unknown>
+): Promise<void> => {
+  try {
+    console.log('[saveUserInteractionAction] Start:', { sessionId, eventType, eventData });
+
+    const supabase = await createServerActionClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    console.log('[saveUserInteractionAction] User:', { userId: user?.id, email: user?.email });
+
+    const serviceClient = createServiceClient();
+    const { data, error } = await serviceClient
+      .from('user_interactions')
+      .insert({
+        session_id: sessionId,
+        user_id: user?.id || null,
+        event_type: eventType,
+        event_data: eventData as never,
+      })
+      .select();
+
+    if (error) {
+      console.error('[saveUserInteractionAction] Supabase Error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
+      // エラーが発生してもアプリケーションの動作に影響しないように、エラーを投げない
+    } else {
+      console.log('[saveUserInteractionAction] Success:', data);
+    }
+  } catch (error) {
+    console.error('[saveUserInteractionAction] Caught Error:', error);
+    if (error instanceof Error) {
+      console.error('[saveUserInteractionAction] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      });
+    }
+    // エラーが発生してもアプリケーションの動作に影響しないように、エラーを投げない
+  }
+};
+
+type UserInteractionStats = {
+  userId: string | null;
+  username: string | null;
+  totalInteractions: number;
+  filterToggleCount: number;
+  summarizeCount: number;
+  sessionCount: number;
+};
+
+/**
+ * ユーザーごとのインタラクション統計を取得
+ */
+export const getUserInteractionStatsAction = async (): Promise<UserInteractionStats[]> => {
+  try {
+    const supabase = await createServerActionClient();
+
+    // 全インタラクションを取得
+    const { data: interactions, error: interactionsError } = await supabase
+      .from('user_interactions')
+      .select('user_id, event_type, session_id');
+
+    if (interactionsError) throw interactionsError;
+
+    // セッション情報を取得（ユーザー名を取得するため）
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('sessions')
+      .select('id, user_id, username');
+
+    if (sessionsError) throw sessionsError;
+
+    // ユーザーIDごとにグループ化
+    const userStatsMap = new Map<string, UserInteractionStats>();
+
+    for (const interaction of interactions || []) {
+      const userId = interaction.user_id || 'anonymous';
+
+      // セッション情報からユーザー名を取得
+      const session = sessions?.find(s => s.id === interaction.session_id);
+      const username = session?.username || null;
+
+      if (!userStatsMap.has(userId)) {
+        userStatsMap.set(userId, {
+          userId: interaction.user_id,
+          username,
+          totalInteractions: 0,
+          filterToggleCount: 0,
+          summarizeCount: 0,
+          sessionCount: 0,
+        });
+      }
+
+      const stats = userStatsMap.get(userId);
+      if (!stats) continue;
+
+      stats.totalInteractions++;
+
+      if (interaction.event_type === 'filter_toggle') {
+        stats.filterToggleCount++;
+      } else if (interaction.event_type === 'summarize') {
+        stats.summarizeCount++;
+      }
+    }
+
+    // セッション数をカウント
+    const sessionsByUser = new Map<string, Set<string>>();
+    for (const interaction of interactions || []) {
+      const userId = interaction.user_id || 'anonymous';
+      if (!sessionsByUser.has(userId)) {
+        sessionsByUser.set(userId, new Set());
+      }
+      sessionsByUser.get(userId)?.add(interaction.session_id);
+    }
+
+    // セッション数を設定
+    for (const [userId, sessionIds] of sessionsByUser.entries()) {
+      const stats = userStatsMap.get(userId);
+      if (stats) {
+        stats.sessionCount = sessionIds.size;
+      }
+    }
+
+    // 配列に変換してインタラクション数でソート
+    return Array.from(userStatsMap.values()).sort(
+      (a, b) => b.totalInteractions - a.totalInteractions
+    );
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : 'Failed to get user interaction stats'
+    );
+  }
+};
+
+type SessionInteraction = {
+  id: number;
+  userId: string | null;
+  username: string | null;
+  eventType: 'filter_toggle' | 'summarize';
+  eventData: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+/**
+ * セッションのインタラクション履歴を取得
+ */
+export const getSessionInteractionsAction = async (
+  sessionId: string
+): Promise<SessionInteraction[]> => {
+  try {
+    const supabase = await createServerActionClient();
+
+    // インタラクション履歴を取得
+    const { data: interactions, error } = await supabase
+      .from('user_interactions')
+      .select('id, user_id, event_type, event_data, created_at')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // セッション情報を取得してユーザー名を取得
+    const { data: session } = await supabase
+      .from('sessions')
+      .select('username')
+      .eq('id', sessionId)
+      .single();
+
+    return (interactions || []).map(interaction => ({
+      id: interaction.id,
+      userId: interaction.user_id,
+      username: session?.username || null,
+      eventType: interaction.event_type as 'filter_toggle' | 'summarize',
+      eventData: interaction.event_data as Record<string, unknown> | null,
+      createdAt: interaction.created_at || new Date().toISOString(),
+    }));
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Failed to get session interactions');
   }
 };
 
