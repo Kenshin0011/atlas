@@ -17,7 +17,6 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { emailToUsername } from '@/lib/supabase/username';
 import { useStreamWithSupabase } from '../hooks/useStreamWithSupabase';
 import { ConversationTimeline } from './ConversationTimeline';
-import { MathChallenge } from './MathChallenge';
 import { SpeechRecognitionIndicator } from './SpeechRecognitionIndicator';
 
 type AssistantProps = {
@@ -310,7 +309,7 @@ export const Assistant = ({ boothId }: AssistantProps) => {
 
       {/* メインコンテンツ */}
       <main className="flex-1 flex overflow-hidden">
-        {/* 左側: 会話エリア */}
+        {/* 会話エリア */}
         <div className="flex-1 flex flex-col">
           <div className="container mx-auto px-4 py-6 flex flex-col gap-6 h-full">
             {/* テキスト入力フォーム（テキストモードのみ） */}
@@ -369,11 +368,6 @@ export const Assistant = ({ boothId }: AssistantProps) => {
               </div>
             )}
           </div>
-        </div>
-
-        {/* 右側: 掛け算チャレンジエリア */}
-        <div className="w-96 flex-shrink-0">
-          <MathChallenge />
         </div>
       </main>
     </div>
